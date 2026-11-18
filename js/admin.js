@@ -1,5 +1,5 @@
 /* =========================================================
-   STH – Página de administración de precios (admin.html)
+   SJTS – Página de administración de precios (admin.html)
    La seguridad real está en firestore.rules: aunque alguien
    abra esta página, solo los administradores pueden guardar.
    ========================================================= */

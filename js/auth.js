@@ -1,5 +1,5 @@
 /* =========================================================
-   STH – Cuentas de usuario y precios (Firebase)
+   SJTS – Cuentas de usuario y precios (Firebase)
    - Inicia sesión, registra y cierra sesión.
    - Lee los precios de Firestore solo cuando hay sesión.
    - Avisa a la página con el evento "sth:auth".
@@ -80,7 +80,7 @@ window.STH_AUTH = {
 if (!configurado) {
   estado.listo = true;
   estado.error = "Firebase no está configurado (js/config.js).";
-  console.warn("[STH] " + estado.error);
+  console.warn("[SJTS] " + estado.error);
   avisar();
 } else {
   const app = initializeApp(FB);
@@ -109,7 +109,7 @@ if (!configurado) {
         estado.usuario.telefono = p.telefono || "";
       }
     } catch (e) {
-      console.error("[STH]", e);
+      console.error("[SJTS]", e);
       estado.precios = {};
       estado.error = mensaje(e);
     }

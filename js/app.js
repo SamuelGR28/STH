@@ -1,5 +1,5 @@
 /* =========================================================
-   STH – Lógica de la tienda
+   SJTS – Lógica de la tienda
    Normalmente no necesitas editar este archivo:
    los productos están en js/productos.js y los datos de
    contacto en js/config.js.
@@ -88,15 +88,15 @@
 
   function renderBrand() {
     if (CFG.logo) {
-      $("#brand").innerHTML = `<img src="${esc(CFG.logo)}" alt="${esc(CFG.nombre || "STH")}">`;
+      $("#brand").innerHTML = `<img src="${esc(CFG.logo)}" alt="${esc(CFG.nombre || "SJTS")}">`;
     } else {
-      $("#brand").textContent = CFG.nombre || "STH";
+      $("#brand").textContent = CFG.nombre || "SJTS";
     }
     if (CFG.eslogan) $("#eslogan").textContent = CFG.eslogan;
     if (CFG.envio) $("#envioTxt").textContent = CFG.envio;
     $("#year").textContent = new Date().getFullYear();
 
-    const hola = `Hola ${CFG.nombre || "STH"}, quiero información sobre sus productos.`;
+    const hola = `Hola ${CFG.nombre || "SJTS"}, quiero información sobre sus productos.`;
     $("#heroWhatsapp").href = waLink(hola);
     $("#contactWhatsapp").href = waLink(hola);
 
@@ -348,7 +348,7 @@
     const u = sesion.usuario;
 
     const msg = [
-      `Hola ${CFG.nombre || "STH"}, quiero hacer este pedido:`,
+      `Hola ${CFG.nombre || "SJTS"}, quiero hacer este pedido:`,
       "",
       ...lines,
       "",

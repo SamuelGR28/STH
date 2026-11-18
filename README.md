@@ -1,6 +1,6 @@
-# STH – Multitienda creativa
+# SJTS – Multitienda creativa
 
-Página de ventas de STH: velas, cuadernos, papelería, vasos personalizados, camisas y ropa.
+Página de ventas de SJTS: velas, cuadernos, papelería, vasos personalizados, camisas y ropa.
 
 Es una página estática (HTML, CSS y JavaScript) publicada gratis con **GitHub Pages**. Las cuentas de clientes y los precios usan **Firebase** (plan gratuito).
 

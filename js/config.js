@@ -1,9 +1,9 @@
 /* =========================================================
-   CONFIGURACIÓN DE LA TIENDA STH
+   CONFIGURACIÓN DE LA TIENDA SJTS
    Cambia aquí los datos de contacto. No necesitas tocar app.js.
    ========================================================= */
 window.STH_CONFIG = {
-  nombre: "STH",
+  nombre: "SJTS",
   eslogan: "Multitienda creativa: hecho a mano y personalizado para ti",
 
   // Número de WhatsApp con indicativo del país, sin "+", espacios ni guiones.
@@ -16,7 +16,7 @@ window.STH_CONFIG = {
   ciudad: "Colombia",
   horario: "Lunes a sábado, 9:00 a.m. – 6:00 p.m.",
 
-  // Ruta al logo. Mientras esté vacío se muestra el texto "STH".
+  // Ruta al logo. Mientras esté vacío se muestra el texto "SJTS".
   // Ejemplo: "img/logo.png"
   logo: "",
 

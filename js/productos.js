@@ -1,5 +1,5 @@
 /* =========================================================
-   SECTORES Y PRODUCTOS DE STH
+   SECTORES Y PRODUCTOS DE SJTS
    - Para agregar un producto, copia un bloque { ... } y cambia sus datos.
    - "categoria" debe ser el "id" de uno de los sectores.
    - "imagen": ruta a la foto, por ejemplo "img/productos/vela-lavanda.jpg".
