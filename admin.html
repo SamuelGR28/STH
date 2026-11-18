@@ -74,6 +74,12 @@
       </div>
       <p class="muted">Escribe el precio en pesos, sin puntos ni signo $. Deja vacío un producto para mostrar "Consultar".
         Para agregar productos nuevos, edita <code>js/productos.js</code>.</p>
+      <div class="price-notice" id="pendingNote" hidden>
+        <div>
+          <strong><span id="pendingCount"></span> productos tienen un precio sugerido que aún no se ha guardado.</strong>
+          <span>Los clientes todavía no los ven. Revisa los valores y pulsa "Guardar precios".</span>
+        </div>
+      </div>
       <div class="admin__card" id="groups"></div>
       <div class="admin__save">
         <span class="status" id="saveStatus"></span>

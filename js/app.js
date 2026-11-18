@@ -487,6 +487,9 @@
     $("#accountLabel").textContent = nombre;
     btn.setAttribute("aria-label", conSesion() ? "Mi cuenta" : "Ingresar o crear cuenta");
     $("#priceNotice").hidden = !sesion.listo || conSesion();
+    const sinPrecio = esAdmin() ? PRODUCTOS.filter((p) => !precio(p)).length : 0;
+    $("#adminNotice").hidden = sinPrecio === 0;
+    $("#adminMissing").textContent = sinPrecio;
     renderFeatured();
     renderProducts();
     renderCart();

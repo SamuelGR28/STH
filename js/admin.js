@@ -8,6 +8,18 @@ const SECTORES = window.STH_SECTORES || [];
 const PRODUCTOS = window.STH_PRODUCTOS || [];
 const ADMINS = (CFG.administradores || []).map((c) => c.toLowerCase());
 
+// Precios de ejemplo para llenar el formulario la primera vez.
+// Solo se usan si ese producto aún no tiene precio guardado en Firebase.
+// Corrígelos en admin.html y pulsa "Guardar precios".
+const SUGERIDOS = {
+  "vela-lavanda": 28000, "vela-vainilla": 30000, "vela-regalo": 35000,
+  "cuaderno-argollado": 22000, "agenda-2027": 38000, "libreta-bolsillo": 12000,
+  "stickers": 8000, "tarjetas": 15000, "kit-marcadores": 18000,
+  "mug-ceramica": 25000, "vaso-vidrio": 27000, "termo": 45000,
+  "camiseta-estampada": 35000, "camiseta-nino": 28000, "camiseta-grupo": 30000,
+  "buzo-capota": 75000, "gorra": 32000, "tote-bag": 26000
+};
+
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
@@ -24,13 +36,21 @@ function toast(t) {
 }
 
 function renderEditor(precios) {
+  // Si un producto nunca se ha guardado, se sugiere el precio de ejemplo.
+  const pendientes = PRODUCTOS.filter((p) => !(p.id in precios) && SUGERIDOS[p.id]).length;
+  $("#pendingNote").hidden = pendientes === 0;
+  $("#pendingCount").textContent = pendientes;
+
   $("#groups").innerHTML = SECTORES.map((s) => {
     const items = PRODUCTOS.filter((p) => p.categoria === s.id);
     if (!items.length) return "";
     return `<section class="admin__group"><h2>${esc(s.nombre)}</h2>${items.map((p) => {
-      const v = Number(precios[p.id]) > 0 ? Number(precios[p.id]) : "";
+      const guardado = p.id in precios;
+      const base = guardado ? Number(precios[p.id]) : Number(SUGERIDOS[p.id]);
+      const v = base > 0 ? base : "";
+      const nota = guardado ? "" : (v ? " · sugerido, sin guardar" : " · sin precio");
       return `<div class="admin__row">
-          <label for="p-${esc(p.id)}">${esc(p.nombre)}<small>${esc(p.id)}</small></label>
+          <label for="p-${esc(p.id)}">${esc(p.nombre)}<small>${esc(p.id)}${nota}</small></label>
           <span class="admin__price">$<input id="p-${esc(p.id)}" name="${esc(p.id)}" inputmode="numeric" value="${v}" placeholder="Consultar"></span>
         </div>`;
     }).join("")}</section>`;
@@ -87,6 +107,7 @@ $("#priceEditor").addEventListener("submit", async (e) => {
   $("#saveStatus").textContent = "Guardando…";
   try {
     await window.STH_AUTH.guardarPrecios(mapa);
+    renderEditor(window.STH_AUTH.estado.precios || mapa);
     $("#saveStatus").textContent = "Guardado " + new Date().toLocaleTimeString("es-CO");
     toast("Precios guardados");
   } catch (ex) {
