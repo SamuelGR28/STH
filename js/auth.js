@@ -58,6 +58,7 @@ const MENSAJES = {
 const mensaje = (e) => MENSAJES[e?.code] || "Ocurrió un error. Intenta de nuevo.";
 
 let auth, db;
+const cacheFotos = {};
 
 const ordenar = (lista) => lista.slice().sort((a, b) =>
   (a.orden ?? 1e9) - (b.orden ?? 1e9) || String(a.nombre).localeCompare(String(b.nombre), "es"));
@@ -126,11 +127,29 @@ window.STH_AUTH = {
     avisar();
   },
 
+  // Fotos adicionales de un producto (la portada está en producto.imagen).
+  // Se guardan aparte para que el catálogo cargue rápido.
+  async obtenerFotos(id) {
+    if (cacheFotos[id]) return cacheFotos[id];
+    if (!db) return [];
+    const snap = await getDoc(doc(db, "fotos", id));
+    const lista = snap.exists() && Array.isArray(snap.data().lista) ? snap.data().lista : [];
+    cacheFotos[id] = lista;
+    return lista;
+  },
+
   // Crea o actualiza un producto. "precio" es opcional (número o 0).
-  async guardarProducto(producto, precio) {
+  // "extras" = fotos adicionales (sin la portada); null = no cambiarlas.
+  async guardarProducto(producto, precio, extras = null) {
     await asegurarGestionado();
     const { id, ...datos } = producto;
     const batch = writeBatch(db);
+    if (Array.isArray(extras)) {
+      datos.fotosExtra = extras.length;
+      if (extras.length) batch.set(doc(db, "fotos", id), { lista: extras });
+      else batch.delete(doc(db, "fotos", id));
+      cacheFotos[id] = extras;
+    }
     batch.set(doc(db, "productos", id), datos);
     batch.set(doc(db, "precios", "catalogo"), { [id]: Number(precio) > 0 ? Number(precio) : 0 }, { merge: true });
     await batch.commit();
@@ -145,6 +164,8 @@ window.STH_AUTH = {
     await asegurarGestionado();
     const batch = writeBatch(db);
     batch.delete(doc(db, "productos", id));
+    batch.delete(doc(db, "fotos", id));
+    delete cacheFotos[id];
     batch.set(doc(db, "precios", "catalogo"), { [id]: deleteField() }, { merge: true });
     await batch.commit();
     estado.productos = estado.productos.filter((p) => p.id !== id);

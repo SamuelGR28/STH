@@ -44,10 +44,13 @@
     .pform select, .pform textarea { width: 100%; padding: 10px 12px; border: 1.5px solid var(--line); border-radius: 10px; background: var(--surface); font-weight: 400; }
     .pform .two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
     .pform .check { display: flex; gap: 8px; align-items: center; font-weight: 500; margin: 4px 0; }
-    .photo { display: grid; grid-template-columns: 96px 1fr; gap: 14px; align-items: center; margin-bottom: 12px; }
-    .photo__preview { width: 96px; height: 96px; border-radius: 12px; background: var(--tint); display: grid; place-items: center; overflow: hidden; border: 1.5px dashed var(--line); }
-    .photo__preview img { width: 100%; height: 100%; object-fit: cover; }
-    .photo__preview svg { width: 55%; height: 55%; }
+    .photos { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-top: 6px; }
+    .ph { position: relative; aspect-ratio: 1; border-radius: 10px; overflow: hidden; background: var(--tint); border: 1.5px solid var(--line); display: grid; place-items: center; }
+    .ph img { width: 100%; height: 100%; object-fit: cover; }
+    .ph--empty { border-style: dashed; color: var(--muted); font-size: .75rem; font-weight: 400; text-align: center; padding: 4px; }
+    .ph__x { position: absolute; top: 4px; right: 4px; width: 24px; height: 24px; border-radius: 50%; border: 0; background: rgba(43,34,32,.8); color: #fff; cursor: pointer; font-size: .8rem; line-height: 1; }
+    .ph__cover { position: absolute; left: 4px; bottom: 4px; padding: 2px 6px; border-radius: 6px; background: var(--accent); color: #fff; font-size: .65rem; font-weight: 700; }
+    .ph__mk { position: absolute; left: 4px; bottom: 4px; padding: 2px 6px; border-radius: 6px; border: 0; background: rgba(255,255,255,.9); font-size: .65rem; font-weight: 700; cursor: pointer; }
     .photo__btns { display: flex; gap: 8px; flex-wrap: wrap; }
     .hintline { color: var(--muted); font-size: .8rem; font-weight: 400; }
     .modal--form { width: min(560px, 100% - 32px); }
@@ -143,18 +146,15 @@
       <button type="button" class="icon-btn modal__close" id="prodClose" aria-label="Cerrar">✕</button>
       <h3 id="pformTitle">Agregar producto</h3>
 
-      <div class="photo">
-        <div class="photo__preview" id="photoPreview"></div>
-        <div>
-          <div class="photo__btns">
-            <label class="btn btn--ghost btn--sm" style="cursor:pointer">
-              Elegir foto
-              <input type="file" id="photoInput" accept="image/*" hidden>
-            </label>
-            <button type="button" class="btn btn--ghost btn--sm" id="photoRemove">Quitar foto</button>
-          </div>
-          <p class="hintline" style="margin:6px 0 0">JPG o PNG. Se ajusta sola a un tamaño liviano para la web.</p>
+      <div class="field" style="margin-bottom:14px">Fotos <span class="hintline">(hasta 5 · la primera es la portada)</span>
+        <div class="photos" id="photos"></div>
+        <div class="photo__btns" style="margin-top:8px">
+          <label class="btn btn--ghost btn--sm" style="cursor:pointer" id="photoAdd">
+            + Agregar fotos
+            <input type="file" id="photoInput" accept="image/*" multiple hidden>
+          </label>
         </div>
+        <p class="hintline" style="margin:4px 0 0">JPG o PNG. Se ajustan solas a un tamaño liviano para la web.</p>
       </div>
 
       <label class="field">Nombre del producto

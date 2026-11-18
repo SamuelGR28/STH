@@ -29,6 +29,10 @@ service cloud.firestore {
       allow read: if true;
       allow write: if esAdmin();
     }
+    match /fotos/{id} {
+      allow read: if true;
+      allow write: if esAdmin();
+    }
     match /ajustes/{doc} {
       allow read: if true;
       allow write: if esAdmin();

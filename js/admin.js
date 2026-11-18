@@ -123,16 +123,32 @@ $("#prodList").addEventListener("click", async (e) => {
 const modal = $("#prodModal");
 const form = $("#prodForm");
 let editando = null;   // id del producto que se edita, o null si es nuevo
-let foto = "";         // imagen actual (dataURL o ruta)
+const MAX_FOTOS = 5;
+let fotos = [];        // fotos del producto (dataURL o ruta); la primera es la portada
+let cargandoFotos = false;
 
 $("#pfSector").innerHTML = SECTORES.map((s) => `<option value="${esc(s.id)}">${esc(s.nombre)}</option>`).join("");
 
-function pintarFoto() {
-  const sector = form.categoria.value;
-  $("#photoPreview").innerHTML = foto ? `<img src="${esc(foto)}" alt="">` : icon(sector);
-  $("#photoPreview").style.setProperty("--tint", `var(--c-${sector}, #f4ebe0)`);
-  $("#photoRemove").hidden = !foto;
+function pintarFotos() {
+  const celdas = fotos.map((f, i) => `<div class="ph">
+      <img src="${esc(f)}" alt="Foto ${i + 1}">
+      <button type="button" class="ph__x" data-quitar="${i}" aria-label="Quitar foto ${i + 1}">✕</button>
+      ${i === 0 ? '<span class="ph__cover">Portada</span>' : `<button type="button" class="ph__mk" data-portada="${i}">Portada</button>`}
+    </div>`);
+  if (cargandoFotos) celdas.push('<div class="ph ph--empty">Cargando fotos…</div>');
+  else if (fotos.length < MAX_FOTOS) celdas.push(`<div class="ph ph--empty">${fotos.length ? "Puedes agregar más" : "Sin fotos"}</div>`);
+  $("#photos").innerHTML = celdas.join("");
+  $("#photoAdd").hidden = cargandoFotos || fotos.length >= MAX_FOTOS;
 }
+
+$("#photos").addEventListener("click", (e) => {
+  const q = e.target.closest("[data-quitar]");
+  const c = e.target.closest("[data-portada]");
+  if (q) fotos.splice(Number(q.dataset.quitar), 1);
+  else if (c) fotos.unshift(...fotos.splice(Number(c.dataset.portada), 1));
+  else return;
+  pintarFotos();
+});
 
 function abrirForm(id) {
   const p = id ? productos().find((x) => x.id === id) : null;
@@ -149,36 +165,50 @@ function abrirForm(id) {
   form.destacado.checked = Boolean(p?.destacado);
   const v = p ? Number(estado.precios[p.id]) : 0;
   form.precio.value = v > 0 ? v : "";
-  foto = p?.imagen || "";
-  pintarFoto();
+  fotos = p?.imagen ? [p.imagen] : [];
+  cargandoFotos = Boolean(p && p.fotosExtra > 0);
+  pintarFotos();
   modal.showModal();
+  if (cargandoFotos) {
+    AUTH().obtenerFotos(p.id).then((extras) => {
+      if (editando !== p.id) return;
+      fotos = [...fotos, ...extras].slice(0, MAX_FOTOS);
+    }).catch(() => {
+      $("#pformError").textContent = "No se pudieron cargar las fotos adicionales.";
+    }).finally(() => { cargandoFotos = false; pintarFotos(); });
+  }
   form.nombre.focus();
 }
 
 $("#addProduct").addEventListener("click", () => abrirForm(null));
 $("#prodClose").addEventListener("click", () => modal.close());
 modal.addEventListener("click", (e) => { if (e.target === modal) modal.close(); });
-form.categoria.addEventListener("change", pintarFoto);
-$("#photoRemove").addEventListener("click", () => { foto = ""; pintarFoto(); });
 
-// Reduce la foto a máximo 800 px y la guarda como JPG liviano (< ~600 KB).
+
+// Reduce la foto y la guarda como JPG liviano (máx. ~120 KB) para que la tienda cargue rápido.
+// Firebase admite hasta 1 MB por documento: 4 fotos extra x 120 KB caben de sobra.
+const MAX_CARACTERES = 160000;
 function comprimir(file) {
   return new Promise((resolve, reject) => {
     const url = URL.createObjectURL(file);
     const img = new Image();
     img.onload = () => {
       URL.revokeObjectURL(url);
-      const max = 800;
-      const k = Math.min(1, max / Math.max(img.width, img.height));
-      const c = document.createElement("canvas");
-      c.width = Math.round(img.width * k);
-      c.height = Math.round(img.height * k);
-      const g = c.getContext("2d");
-      g.fillStyle = "#ffffff";
-      g.fillRect(0, 0, c.width, c.height);
-      g.drawImage(img, 0, 0, c.width, c.height);
-      let q = 0.82, data = c.toDataURL("image/jpeg", q);
-      while (data.length > 800000 && q > 0.4) { q -= 0.1; data = c.toDataURL("image/jpeg", q); }
+      let data = "";
+      for (const max of [1000, 820, 680, 560, 460]) {
+        const k = Math.min(1, max / Math.max(img.width, img.height));
+        const c = document.createElement("canvas");
+        c.width = Math.round(img.width * k);
+        c.height = Math.round(img.height * k);
+        const g = c.getContext("2d");
+        g.fillStyle = "#ffffff";
+        g.fillRect(0, 0, c.width, c.height);
+        g.drawImage(img, 0, 0, c.width, c.height);
+        for (const q of [0.82, 0.72, 0.62]) {
+          data = c.toDataURL("image/jpeg", q);
+          if (data.length <= MAX_CARACTERES) return resolve(data);
+        }
+      }
       resolve(data);
     };
     img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("No se pudo leer la imagen.")); };
@@ -187,18 +217,20 @@ function comprimir(file) {
 }
 
 $("#photoInput").addEventListener("change", async (e) => {
-  const file = e.target.files?.[0];
+  const archivos = [...(e.target.files || [])].filter((f) => f.type.startsWith("image/"));
   e.target.value = "";
-  if (!file) return;
-  if (!file.type.startsWith("image/")) { $("#pformError").textContent = "El archivo no es una imagen."; return; }
-  $("#photoPreview").innerHTML = '<span class="hintline">Procesando…</span>';
-  try {
-    foto = await comprimir(file);
-    $("#pformError").textContent = "";
-  } catch (ex) {
-    $("#pformError").textContent = ex.message;
+  if (!archivos.length) return;
+  const libres = MAX_FOTOS - fotos.length;
+  $("#pformError").textContent = archivos.length > libres
+    ? `Solo caben ${MAX_FOTOS} fotos. Se agregaron las primeras ${libres}.` : "";
+  cargandoFotos = true;
+  pintarFotos();
+  for (const f of archivos.slice(0, libres)) {
+    try { fotos.push(await comprimir(f)); }
+    catch (ex) { $("#pformError").textContent = ex.message; }
   }
-  pintarFoto();
+  cargandoFotos = false;
+  pintarFotos();
 });
 
 const lista = (txt) => String(txt || "").split(",").map((s) => s.trim()).filter(Boolean).slice(0, 20);
@@ -228,7 +260,7 @@ form.addEventListener("submit", async (e) => {
     nombre,
     categoria: form.categoria.value,
     descripcion: form.descripcion.value.trim(),
-    imagen: foto,
+    imagen: fotos[0] || "",
     personalizable: form.personalizable.checked,
     destacado: form.destacado.checked,
     orden: anterior?.orden ?? Date.now()
@@ -238,11 +270,12 @@ form.addEventListener("submit", async (e) => {
   if (tallas.length) producto.tallas = tallas;
   if (colores.length) producto.colores = colores;
 
+  if (cargandoFotos) { err.textContent = "Espera a que terminen de cargar las fotos."; return; }
   const btn = $("#pformSave");
   btn.disabled = true;
   btn.textContent = "Guardando…";
   try {
-    await AUTH().guardarProducto(producto, precio);
+    await AUTH().guardarProducto(producto, precio, fotos.slice(1));
     modal.close();
     toast(anterior ? "Producto actualizado" : "Producto agregado a la tienda");
   } catch (ex) {

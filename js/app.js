@@ -159,6 +159,7 @@
         <button class="card__media" data-open="${esc(p.id)}" aria-label="Ver ${esc(p.nombre)}">
           ${media(p)}
           ${p.personalizable ? '<span class="badge">Personalizable</span>' : ""}
+          ${p.fotosExtra > 0 ? `<span class="card__count">${p.fotosExtra + 1} fotos</span>` : ""}
         </button>
         <div class="card__body">
           <span class="card__sector">${esc(s ? s.nombre : "")}</span>
@@ -214,13 +215,39 @@
         </div></fieldset>`;
   }
 
+  // Muestra las fotos del producto en el popup: se deslizan con el dedo o con las flechas.
+  function galeria(p, fotos) {
+    const box = $("#modalMedia");
+    if (!fotos.length) { box.innerHTML = icon(p.categoria); return; }
+    const varias = fotos.length > 1;
+    box.innerHTML = `<div class="gallery">${fotos.map((f, i) =>
+        `<img src="${esc(f)}" alt="${esc(p.nombre)}${varias ? ` – foto ${i + 1}` : ""}">`).join("")}</div>
+      ${varias ? `<button type="button" class="gallery__nav gallery__nav--prev" aria-label="Foto anterior">‹</button>
+        <button type="button" class="gallery__nav gallery__nav--next" aria-label="Foto siguiente">›</button>
+        <div class="gallery__dots">${fotos.map((_, i) => `<span${i ? "" : ' class="on"'}></span>`).join("")}</div>` : ""}`;
+    if (!varias) return;
+    const g = $(".gallery", box);
+    const dots = $$(".gallery__dots span", box);
+    const actual = () => Math.round(g.scrollLeft / g.clientWidth);
+    const ir = (i) => g.scrollTo({ left: Math.max(0, Math.min(fotos.length - 1, i)) * g.clientWidth, behavior: "smooth" });
+    $(".gallery__nav--prev", box).addEventListener("click", () => ir(actual() - 1));
+    $(".gallery__nav--next", box).addEventListener("click", () => ir(actual() + 1));
+    g.addEventListener("scroll", () => dots.forEach((d, i) => d.classList.toggle("on", i === actual())), { passive: true });
+  }
+
   function openProduct(id) {
     const p = productById[id];
     if (!p) return;
     current = p;
     const s = sectorById[p.categoria];
     $("#modalMedia").setAttribute("style", sectorColor(p.categoria));
-    $("#modalMedia").innerHTML = media(p);
+    galeria(p, p.imagen ? [p.imagen] : []);
+    // Fotos adicionales: se piden al abrir el producto.
+    if (p.fotosExtra > 0 && window.STH_AUTH?.obtenerFotos) {
+      window.STH_AUTH.obtenerFotos(p.id).then((extras) => {
+        if (current === p && modal.open) galeria(p, [p.imagen, ...extras].filter(Boolean));
+      }).catch(() => { /* se queda con la portada */ });
+    }
     $("#modalSector").textContent = s ? s.nombre : "";
     $("#modalTitle").textContent = p.nombre;
     $("#modalPrice").innerHTML = precioHTML(p);
