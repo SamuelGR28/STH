@@ -108,6 +108,23 @@
   }
   function saveCart() {
     try { localStorage.setItem(CART_KEY, JSON.stringify(cart)); } catch { /* sin almacenamiento */ }
+    sincronizarCarrito();
+  }
+
+  // Guarda el carrito en Firebase (si hay sesión) para poder recordarle al cliente
+  // que dejó productos. Espera 2 s para no guardar en cada clic.
+  let timerSync;
+  function sincronizarCarrito() {
+    clearTimeout(timerSync);
+    timerSync = setTimeout(() => {
+      if (!conSesion() || !productosListos || !window.STH_AUTH?.guardarCarrito) return;
+      const items = cart.filter((l) => productById[l.id]).map((l) => ({
+        id: l.id, nombre: productById[l.id].nombre, qty: l.qty,
+        talla: l.talla || "", color: l.color || "", personalizacion: l.personalizacion || ""
+      }));
+      window.STH_AUTH.guardarCarrito(items, totalCarrito()).catch((ex) =>
+        console.warn("[SJTS] No se pudo guardar el carrito:", ex?.code || ex));
+    }, 2000);
   }
 
   /* ---------- Datos de la marca ---------- */
@@ -637,12 +654,65 @@
     renderCart();
   }
 
+  let uidAnterior = null;
   function aplicarEstado(detalle) {
     sesion = { ...sesion, ...detalle };
     if (Array.isArray(detalle.sectores)) setSectores(detalle.sectores);
     if (Array.isArray(detalle.productos)) setProductos(detalle.productos);
     renderSesion();
+    // Al iniciar sesión: si este navegador no tiene carrito, recupera el guardado;
+    // si tiene, lo guarda para el recordatorio.
+    const uid = sesion.usuario?.uid || null;
+    if (uid && uid !== uidAnterior && productosListos) {
+      uidAnterior = uid;
+      if (cart.length) sincronizarCarrito();
+      else window.STH_AUTH?.leerCarrito?.().then((items) => {
+        const validos = items.filter((l) => productById[l.id] && l.qty > 0)
+          .map(({ id, qty, talla, color, personalizacion }) => ({ id, qty, talla, color, personalizacion }));
+        if (!validos.length || cart.length) return;
+        cart = validos;
+        try { localStorage.setItem(CART_KEY, JSON.stringify(cart)); } catch { /* nada */ }
+        renderCart();
+        mostrarRecordatorio(true);
+      }).catch(() => {});
+    }
+    if (!uid) uidAnterior = null;
+    if (productosListos) mostrarRecordatorio(false);
   }
+
+  /* ---------- Recordatorio de carrito ---------- */
+  const VISITA_KEY = "sth-ultima-visita";
+  let recordatorioMostrado = false;
+  let ultimaVisita = 0;
+  try { ultimaVisita = Number(localStorage.getItem(VISITA_KEY)) || 0; } catch { /* nada */ }
+
+  // Si el cliente vuelve (más de 30 min después) y tiene productos, se lo recordamos.
+  function mostrarRecordatorio(forzar) {
+    if (recordatorioMostrado || !cart.length) return;
+    const volvio = ultimaVisita && Date.now() - ultimaVisita > 30 * 60 * 1000;
+    if (!forzar && !volvio) return;
+    recordatorioMostrado = true;
+    const n = cart.reduce((s, l) => s + l.qty, 0);
+    const nombre = sesion.usuario?.nombre ? sesion.usuario.nombre.split(" ")[0] + ", t" : "T";
+    $("#cartReminderText").textContent = `${nombre}ienes ${n} producto${n === 1 ? "" : "s"} esperando en tu carrito.`;
+    $("#cartReminder").hidden = false;
+  }
+  $("#cartReminderOpen").addEventListener("click", () => { $("#cartReminder").hidden = true; openCart(); });
+  $("#cartReminderClose").addEventListener("click", () => { $("#cartReminder").hidden = true; });
+
+  // Si cambia de pestaña con productos en el carrito, el título se lo recuerda.
+  const tituloOriginal = document.title;
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) {
+      try { localStorage.setItem(VISITA_KEY, String(Date.now())); } catch { /* nada */ }
+      if (cart.length) document.title = "🛒 ¡Olvidaste algo en tu carrito! · SJTS";
+    } else {
+      document.title = tituloOriginal;
+    }
+  });
+  window.addEventListener("pagehide", () => {
+    try { localStorage.setItem(VISITA_KEY, String(Date.now())); } catch { /* nada */ }
+  });
 
   window.addEventListener("sth:auth", (e) => {
     aplicarEstado(e.detail);

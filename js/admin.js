@@ -1,6 +1,7 @@
 /* =========================================================
    SJTS – Página de administración (admin.html)
    - Pedidos: cada pedido web tiene un token; se marca "compró" (descuenta inventario) o "no compró".
+   - Carritos: clientes que dejaron productos sin pedir, con recordatorio por WhatsApp o correo.
    - Productos: agregar, editar y eliminar (con foto).
    - Precios: editar todos los precios a la vez.
    - Sectores: agregar, editar, ordenar y eliminar.
@@ -59,6 +60,7 @@ $$(".tab").forEach((t) => t.addEventListener("click", () => {
   verPestana(t.dataset.tab);
   if (t.dataset.tab === "inventario") cargarHistorial();
   if (t.dataset.tab === "pedidos") cargarPedidos();
+  if (t.dataset.tab === "carritos") cargarCarritos();
 }));
 
 /* ---------- Lista de productos ---------- */
@@ -419,6 +421,134 @@ $("#pedList").addEventListener("click", async (e) => {
     toast(ex?.message && !ex.code ? ex.message : AUTH().mensaje(ex));
     renderPedidos();
   }
+});
+
+/* ---------- Carritos abandonados ---------- */
+let carritos = [];
+let carritosCargados = false;
+let filtroCar = "abandonados";
+const HORA = 60 * 60 * 1000;
+
+function haceCuanto(fecha) {
+  if (!fecha) return "";
+  const min = Math.round((Date.now() - fecha.getTime()) / 60000);
+  if (min < 1) return "hace un momento";
+  if (min < 60) return `hace ${min} min`;
+  const h = Math.round(min / 60);
+  if (h < 24) return `hace ${h} h`;
+  const d = Math.round(h / 24);
+  return `hace ${d} día${d === 1 ? "" : "s"}`;
+}
+
+// Celular colombiano de 10 dígitos (3xx...) -> 573xx...; si ya trae indicativo se deja.
+function numeroWhatsApp(tel) {
+  const d = String(tel || "").replace(/\D/g, "");
+  if (d.length === 10 && d.startsWith("3")) return "57" + d;
+  return d.length >= 10 ? d : "";
+}
+
+function mensajeRecordatorio(c) {
+  const nombre = (c.cliente?.nombre || "").split(" ")[0];
+  const tienda = new URL("./", location.href).href;
+  const lineas = (c.items || []).map((it) => `• ${it.nombre} x${it.qty}`);
+  return [
+    `Hola${nombre ? " " + nombre : ""} 👋, te escribimos de ${CFG.nombre || "SJTS"}.`,
+    "Vimos que dejaste estos productos en tu carrito:",
+    ...lineas,
+    "",
+    "¿Te ayudamos a terminar tu pedido? Aquí lo tienes guardado:",
+    tienda
+  ].join("\n");
+}
+
+async function cargarCarritos() {
+  carritosCargados = true;
+  try {
+    carritos = await AUTH().cargarCarritos();
+    renderCarritos();
+  } catch (ex) {
+    console.error(ex);
+    $("#carList").innerHTML = `<p class="auth__error">${esc(AUTH().mensaje(ex))}</p>`;
+  }
+}
+
+function renderCarritos() {
+  const abandonados = carritos.filter((c) => c.actualizado && Date.now() - c.actualizado.getTime() > HORA);
+  const sinRecordar = abandonados.filter((c) => !c.recordado).length;
+  $("#carBadge").hidden = sinRecordar === 0;
+  $("#carBadge").textContent = sinRecordar;
+
+  const lista = filtroCar === "abandonados" ? abandonados : carritos;
+  if (!lista.length) {
+    $("#carList").innerHTML = `<p class="muted">${filtroCar === "abandonados"
+      ? "No hay carritos abandonados (más de 1 hora sin enviar el pedido)."
+      : "Ningún cliente tiene productos en el carrito."}</p>`;
+    return;
+  }
+
+  $("#carList").innerHTML = lista.map((c) => {
+    const cl = c.cliente || {};
+    const wa = numeroWhatsApp(cl.telefono);
+    const items = (c.items || []).map((it) => {
+      const extra = [it.talla && `Talla ${it.talla}`, it.color, it.personalizacion && `“${it.personalizacion}”`].filter(Boolean).map(esc).join(" · ");
+      return `<li><span>${esc(it.nombre)} <strong>x${it.qty | 0}</strong>${extra ? `<small>${extra}</small>` : ""}</span></li>`;
+    }).join("");
+    const enlaceWa = wa ? `https://wa.me/${wa}?text=${encodeURIComponent(mensajeRecordatorio(c))}` : "";
+    const enlaceMail = cl.correo
+      ? `mailto:${encodeURIComponent(cl.correo)}?subject=${encodeURIComponent("Tienes productos en tu carrito de " + (CFG.nombre || "SJTS"))}&body=${encodeURIComponent(mensajeRecordatorio(c))}`
+      : "";
+    return `<article class="ped ${c.recordado ? "ped--comprado" : "ped--pendiente"}">
+        <div class="ped__head">
+          <strong>${esc(cl.nombre || "Cliente")}</strong>
+          <span class="ped__estado ${c.recordado ? "ped__estado--comprado" : "ped__estado--pendiente"}">${c.recordado ? "Recordado " + haceCuanto(c.recordado) : "Sin recordar"}</span>
+        </div>
+        <p class="ped__meta">Último cambio ${haceCuanto(c.actualizado)} · ${[cl.telefono, cl.correo].filter(Boolean).map(esc).join(" · ")}</p>
+        <ul class="ped__items">${items}</ul>
+        <div class="ped__total"><span>Total</span><span>${c.total ? money.format(c.total) : "—"}</span></div>
+        <div class="ped__acc">
+          ${enlaceWa ? `<a class="btn btn--ok btn--sm" href="${enlaceWa}" target="_blank" rel="noopener" data-recordar="${esc(c.uid)}">Recordar por WhatsApp</a>` : ""}
+          ${enlaceMail ? `<a class="btn btn--ghost btn--sm" href="${enlaceMail}" data-recordar="${esc(c.uid)}">Recordar por correo</a>` : ""}
+          <button type="button" class="btn btn--ghost btn--sm btn--danger" data-quitar-car="${esc(c.uid)}">Quitar de la lista</button>
+        </div>
+      </article>`;
+  }).join("");
+}
+
+$("#carFiltro").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-f]");
+  if (!b) return;
+  filtroCar = b.dataset.f;
+  $$("#carFiltro .chip").forEach((c) => c.setAttribute("aria-selected", c === b));
+  renderCarritos();
+});
+$("#carReload").addEventListener("click", cargarCarritos);
+
+$("#carList").addEventListener("click", async (e) => {
+  const r = e.target.closest("[data-recordar]");
+  if (r) {
+    // El enlace abre WhatsApp o el correo; aquí solo dejamos constancia de que se recordó.
+    try {
+      await AUTH().marcarRecordado(r.dataset.recordar);
+      const c = carritos.find((x) => x.uid === r.dataset.recordar);
+      if (c) c.recordado = new Date();
+      renderCarritos();
+    } catch (ex) { console.warn(ex); }
+    return;
+  }
+  const q = e.target.closest("[data-quitar-car]");
+  if (!q) return;
+  if (!q.classList.contains("confirm")) {
+    q.classList.add("confirm");
+    q.textContent = "¿Seguro? Quitar";
+    setTimeout(() => { if (q.isConnected) { q.classList.remove("confirm"); q.textContent = "Quitar de la lista"; } }, 4000);
+    return;
+  }
+  try {
+    await AUTH().borrarCarritoDe(q.dataset.quitarCar);
+    carritos = carritos.filter((x) => x.uid !== q.dataset.quitarCar);
+    renderCarritos();
+    toast("Carrito quitado de la lista");
+  } catch (ex) { toast(AUTH().mensaje(ex)); }
 });
 
 /* ---------- Inventario ---------- */
@@ -786,6 +916,7 @@ function render(nuevo) {
   renderInventario();
   if (pestana === "inventario" && !historialCargado) cargarHistorial();
   if (!pedidosCargados) cargarPedidos(); else renderPedidos();
+  if (!carritosCargados) cargarCarritos(); else renderCarritos();
   // No redibujamos los precios mientras se están escribiendo.
   if (!$("#priceEditor").contains(document.activeElement)) renderPrecios();
   mostrar("#panel");

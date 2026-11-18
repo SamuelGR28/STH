@@ -61,6 +61,20 @@ La foto se reduce sola a 800 px y se guarda en Firebase. No hace falta subirla a
 
 `js/productos.js` solo tiene los productos de ejemplo. La tienda los muestra hasta que hagas el primer cambio en **Productos**. En ese momento se copian a Firebase, y desde entonces se ignora el archivo.
 
+### Carritos abandonados (recordatorio)
+
+- **En la tienda:**
+  - Si un cliente vuelve más de 30 minutos después con productos en el carrito, le sale el aviso "Tienes N productos esperando en tu carrito" con el botón **Ver carrito**.
+  - Si cambia de pestaña, el título dice "🛒 ¡Olvidaste algo en tu carrito!".
+- **Si el cliente tiene sesión:** su carrito se guarda en Firebase. Si entra desde otro dispositivo, lo recupera.
+- **En `admin.html`, pestaña Carritos:**
+  - Lista a los clientes que dejaron productos hace más de 1 hora sin enviar el pedido.
+  - **Recordar por WhatsApp** abre WhatsApp con el mensaje ya escrito para ese cliente: solo tienes que pulsar enviar.
+  - También existe **Recordar por correo**.
+  - Queda marcado cuándo se recordó.
+
+El envío no es 100 % automático: mandar mensajes solos sin que nadie pulse enviar requiere un servidor (plan Blaze de Firebase) o la API de WhatsApp Business, que son de pago.
+
 ### Inventario
 
 En `admin.html`, pestaña **Inventario**:

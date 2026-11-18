@@ -18,7 +18,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import {
   getFirestore, doc, getDoc, getDocs, setDoc, collection, writeBatch, deleteField, serverTimestamp, runTransaction,
-  query, orderBy, limit
+  query, orderBy, limit, deleteDoc
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const CFG = window.STH_CONFIG || {};
@@ -231,6 +231,50 @@ window.STH_AUTH = {
       total: Number(total) || 0,
       fecha: serverTimestamp()
     });
+  },
+
+  /* ----- Carritos guardados (para recordar carritos abandonados) ----- */
+
+  // Guarda el carrito del cliente con sesión. items = [{ id, nombre, qty, talla, color, personalizacion }].
+  async guardarCarrito(items, total) {
+    const u = estado.usuario;
+    if (!db || !u) return;
+    const ref = doc(db, "carritos", u.uid);
+    if (!items.length) { await deleteDoc(ref).catch(() => {}); return; }
+    await setDoc(ref, {
+      uid: u.uid,
+      cliente: { nombre: u.nombre || "", correo: u.correo || "", telefono: u.telefono || "" },
+      items: items.slice(0, 50),
+      total: Number(total) || 0,
+      actualizado: serverTimestamp()
+    }, { merge: true });
+  },
+
+  // Carrito guardado del cliente con sesión (para recuperarlo en otro dispositivo).
+  async leerCarrito() {
+    const u = estado.usuario;
+    if (!db || !u) return [];
+    const s = await getDoc(doc(db, "carritos", u.uid));
+    return s.exists() && Array.isArray(s.data().items) ? s.data().items : [];
+  },
+
+  // Carritos de todos los clientes (solo administradores).
+  async cargarCarritos() {
+    const snap = await getDocs(query(collection(db, "carritos"), orderBy("actualizado", "desc"), limit(200)));
+    return snap.docs.map((d) => {
+      const c = d.data();
+      return { ...c, uid: d.id,
+        actualizado: c.actualizado?.toDate ? c.actualizado.toDate() : null,
+        recordado: c.recordado?.toDate ? c.recordado.toDate() : null };
+    });
+  },
+
+  async marcarRecordado(uid) {
+    await setDoc(doc(db, "carritos", uid), { recordado: serverTimestamp(), recordadoPor: estado.usuario?.correo || "" }, { merge: true });
+  },
+
+  async borrarCarritoDe(uid) {
+    await deleteDoc(doc(db, "carritos", uid));
   },
 
   // Últimos pedidos (solo administradores).

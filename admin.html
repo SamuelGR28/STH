@@ -179,6 +179,7 @@
 
       <div class="tabs" role="tablist">
         <button class="tab" role="tab" data-tab="pedidos" aria-selected="true">Pedidos <span class="tab__badge" id="pedBadge" hidden></span></button>
+        <button class="tab" role="tab" data-tab="carritos" aria-selected="false">Carritos <span class="tab__badge" id="carBadge" hidden></span></button>
         <button class="tab" role="tab" data-tab="productos" aria-selected="false">Productos</button>
         <button class="tab" role="tab" data-tab="inventario" aria-selected="false">Inventario</button>
         <button class="tab" role="tab" data-tab="precios" aria-selected="false">Precios</button>
@@ -201,6 +202,19 @@
           <input type="search" id="pedBuscar" placeholder="Buscar por token (SJTS-…), nombre, correo o celular" aria-label="Buscar pedido">
         </label>
         <div id="pedList"><p class="muted">Cargando pedidos…</p></div>
+      </div>
+
+      <!-- Carritos abandonados -->
+      <div data-view="carritos" hidden>
+        <p class="muted">Clientes con sesión que dejaron productos en el carrito sin enviar el pedido. Pulsa <strong>Recordar por WhatsApp</strong>: se abre WhatsApp con el mensaje listo y solo tienes que enviarlo.</p>
+        <div class="admin__bar" style="margin-bottom:12px">
+          <div class="chips" id="carFiltro">
+            <button type="button" class="chip" data-f="abandonados" aria-selected="true">Abandonados (más de 1 h)</button>
+            <button type="button" class="chip" data-f="todos" aria-selected="false">Todos</button>
+          </div>
+          <button type="button" class="btn btn--ghost btn--sm" id="carReload">Actualizar</button>
+        </div>
+        <div id="carList"><p class="muted">Cargando…</p></div>
       </div>
 
       <!-- Productos -->

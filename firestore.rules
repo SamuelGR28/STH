@@ -45,6 +45,19 @@ service cloud.firestore {
       allow update, delete: if esAdmin();
     }
 
+    // Carrito guardado de cada cliente (para recordar carritos abandonados).
+    // El cliente solo ve y cambia el suyo; el administrador los ve todos,
+    // marca cuándo los recordó y puede quitarlos de la lista.
+    match /carritos/{uid} {
+      allow read: if esAdmin() || (conSesion() && request.auth.uid == uid);
+      allow create, update: if esAdmin() || (conSesion()
+        && request.auth.uid == uid
+        && request.resource.data.uid == uid
+        && request.resource.data.items is list
+        && request.resource.data.items.size() <= 50);
+      allow delete: if esAdmin() || (conSesion() && request.auth.uid == uid);
+    }
+
     // Inventario: historial de movimientos. Solo el administrador.
     match /movimientos/{id} {
       allow read, write: if esAdmin();

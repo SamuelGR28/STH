@@ -305,6 +305,14 @@
     </div>
   </dialog>
 
+  <!-- ============ RECORDATORIO DE CARRITO ============ -->
+  <div class="cart-reminder" id="cartReminder" role="status" hidden>
+    <span class="cart-reminder__icon" aria-hidden="true">🛒</span>
+    <p id="cartReminderText"></p>
+    <button class="btn btn--primary btn--sm" id="cartReminderOpen">Ver carrito</button>
+    <button class="icon-btn" id="cartReminderClose" aria-label="Cerrar aviso">✕</button>
+  </div>
+
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
   <script src="js/config.js"></script>
