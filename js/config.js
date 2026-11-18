@@ -8,7 +8,7 @@ window.STH_CONFIG = {
 
   // Número de WhatsApp con indicativo del país, sin "+", espacios ni guiones.
   // Ejemplo Colombia: 573001234567
-  whatsapp: "573000000000",
+  whatsapp: "573006640237",
 
   instagram: "https://instagram.com/",   // enlace a tu perfil
   facebook: "",                          // déjalo vacío si no tienes
