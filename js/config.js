@@ -21,5 +21,21 @@ window.STH_CONFIG = {
   logo: "",
 
   moneda: "COP",
-  envio: "Hacemos envíos a todo el país. El costo se confirma por WhatsApp."
+  envio: "Hacemos envíos a todo el país. El costo se confirma por WhatsApp.",
+
+  // Correos de los administradores que pueden editar precios en admin.html.
+  // Deben coincidir con la lista de firestore.rules.
+  administradores: ["correo-del-dueno@ejemplo.com"],
+
+  // Configuración de Firebase (cuentas de usuario y precios).
+  // Cópiala de: Consola de Firebase > Configuración del proyecto > Tus apps > Web.
+  // Estos datos son públicos por diseño; la seguridad está en firestore.rules.
+  firebase: {
+    apiKey: "",
+    authDomain: "",
+    projectId: "",
+    storageBucket: "",
+    messagingSenderId: "",
+    appId: ""
+  }
 };

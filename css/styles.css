@@ -30,6 +30,7 @@
 }
 
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 html { scroll-behavior: smooth; scroll-padding-top: 80px; }
 body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font-body); line-height: 1.6; -webkit-font-smoothing: antialiased; }
 img { max-width: 100%; display: block; }
@@ -213,7 +214,37 @@ select { padding: 12px 16px; border: 1.5px solid var(--line); border-radius: 999
 .toast { position: fixed; left: 50%; bottom: 24px; transform: translate(-50%, 140%); background: var(--ink); color: var(--bg); padding: 12px 20px; border-radius: 999px; z-index: 60; transition: transform .3s; font-weight: 500; max-width: calc(100% - 32px); text-align: center; }
 .toast.show { transform: translate(-50%, 0); }
 
+/* ---------- Cuenta y precios protegidos ---------- */
+.account-btn { display: inline-flex; align-items: center; gap: 6px; height: 40px; padding: 0 14px; border: 1.5px solid var(--line); border-radius: 999px; background: var(--surface); cursor: pointer; font-weight: 500; max-width: 180px; }
+.account-btn:hover { border-color: var(--ink); }
+.account-btn svg { width: 18px; height: 18px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
+.account-btn span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.account-btn.is-in { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.price-notice { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; padding: 18px 22px; margin-bottom: 24px; border-radius: var(--radius); background: #fff4ec; border: 1.5px dashed var(--accent); }
+.price-notice strong { display: block; }
+.price-notice span { color: var(--muted); font-size: .92rem; }
+.price-notice__actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.price-notice .btn { padding: 10px 18px; }
+.price-lock { display: inline-flex; align-items: center; gap: 6px; background: none; border: 0; padding: 0; cursor: pointer; color: var(--accent-dark); font-weight: 700; font-size: .9rem; text-decoration: underline; text-underline-offset: 3px; }
+.price-lock svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 2; }
+.price-wait { color: var(--muted); font-size: .9rem; }
+.modal--auth { width: min(440px, 100% - 32px); }
+.auth { position: relative; padding: 36px 28px 28px; }
+.auth h3 { font-size: 1.7rem; margin-bottom: .2em; }
+.auth__panel { display: flex; flex-direction: column; gap: 2px; }
+.auth__panel[hidden] { display: none; }
+.auth .muted, .muted { color: var(--muted); }
+.auth__error { color: #b42318; font-size: .88rem; min-height: 1.2em; margin: 2px 0 8px; }
+.auth__ok { background: #e8f5ec; color: #17603a; padding: 10px 14px; border-radius: 10px; font-size: .92rem; }
+.auth__switch { text-align: center; color: var(--muted); font-size: .9rem; margin: 10px 0 0; }
+.auth .btn--block + .btn--block { margin-top: 8px; }
+.link-btn.inline { display: inline; padding: 0; margin: 0; color: var(--accent-dark); font-weight: 700; }
+
 /* ---------- Adaptación a pantallas ---------- */
+@media (max-width: 560px) {
+  .account-btn { padding: 0 10px; }
+  .account-btn span { display: none; }
+}
 @media (max-width: 900px) {
   .sectors { grid-template-columns: repeat(2, 1fr); }
   .steps { grid-template-columns: repeat(2, 1fr); }

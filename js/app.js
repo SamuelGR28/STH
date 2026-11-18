@@ -50,6 +50,26 @@
   const state = { sector: "todos", query: "", sort: "relevancia" };
   let cart = loadCart();
 
+  // Sesión y precios: los llena js/auth.js con el evento "sth:auth".
+  let sesion = { listo: false, configurado: true, usuario: null, precios: {}, error: "" };
+  const conSesion = () => Boolean(sesion.usuario);
+
+  // Precio de un producto, o null si no hay sesión o no tiene precio cargado.
+  function precio(p) {
+    if (!conSesion()) return null;
+    const v = Number(sesion.precios[p.id]);
+    return Number.isFinite(v) && v > 0 ? v : null;
+  }
+
+  const LOCK = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>';
+
+  function precioHTML(p) {
+    if (!sesion.listo) return '<span class="price-wait">Cargando…</span>';
+    if (!conSesion()) return `<button type="button" class="price-lock" data-auth="ingresar">${LOCK}Ver precio</button>`;
+    const v = precio(p);
+    return v ? `<span class="price">${fmt(v)}</span>` : '<span class="price-wait">Consultar</span>';
+  }
+
   function loadCart() {
     try {
       const data = JSON.parse(localStorage.getItem(CART_KEY) || "[]");
@@ -132,8 +152,8 @@
           <h3 class="card__title">${esc(p.nombre)}</h3>
           <p class="card__desc">${esc(p.descripcion)}</p>
           <div class="card__foot">
-            <span class="price">${fmt(p.precio)}</span>
-            <button class="btn btn--primary card__add" data-open="${esc(p.id)}">Agregar</button>
+            ${precioHTML(p)}
+            <button class="btn btn--primary card__add" data-open="${esc(p.id)}">${conSesion() ? "Agregar" : "Ver"}</button>
           </div>
         </div>
       </article>`;
@@ -147,8 +167,9 @@
       (state.sector === "todos" || p.categoria === state.sector) &&
       (!q || norm(`${p.nombre} ${p.descripcion} ${sectorById[p.categoria]?.nombre || ""}`).includes(q))
     );
-    if (state.sort === "precio-asc") list.sort((a, b) => a.precio - b.precio);
-    else if (state.sort === "precio-desc") list.sort((a, b) => b.precio - a.precio);
+    const pv = (p, alto) => precio(p) ?? (alto ? Infinity : -Infinity);
+    if (state.sort === "precio-asc") list.sort((a, b) => pv(a, true) - pv(b, true));
+    else if (state.sort === "precio-desc") list.sort((a, b) => pv(b, false) - pv(a, false));
     else if (state.sort === "nombre") list.sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
     else list.sort((a, b) => (b.destacado ? 1 : 0) - (a.destacado ? 1 : 0));
 
@@ -186,8 +207,9 @@
     $("#modalMedia").innerHTML = media(p);
     $("#modalSector").textContent = s ? s.nombre : "";
     $("#modalTitle").textContent = p.nombre;
-    $("#modalPrice").textContent = fmt(p.precio);
+    $("#modalPrice").innerHTML = precioHTML(p);
     $("#modalDesc").textContent = p.descripcion;
+    $("#modalAdd").textContent = conSesion() ? "Agregar al carrito" : "Ingresa para ver el precio y pedir";
 
     let opts = "";
     if (p.tallas?.length) opts += pills("talla", "Talla", p.tallas, false);
@@ -211,6 +233,11 @@
 
   $("#productForm").addEventListener("submit", (e) => {
     if (e.submitter?.value !== "add" || !current) return;
+    if (!conSesion()) {
+      // El diálogo se cierra solo (method="dialog"); luego abrimos el de ingreso.
+      setTimeout(() => openAuth("ingresar"), 0);
+      return;
+    }
     const form = e.target;
     const talla = form.querySelector('input[name="talla"]:checked')?.value || "";
     if (current.tallas?.length && !talla) {
@@ -244,12 +271,19 @@
     return [l.talla && `Talla ${l.talla}`, l.color, l.personalizacion && `“${l.personalizacion}”`].filter(Boolean);
   }
 
+  const totalCarrito = () => cart.reduce((n, l) => n + l.qty * (precio(productById[l.id]) || 0), 0);
+  const subtotal = (p, qty) => {
+    const v = precio(p);
+    return v ? fmt(v * qty) : (conSesion() ? "Consultar" : "—");
+  };
+
   function renderCart() {
     const count = cart.reduce((n, l) => n + l.qty, 0);
-    const total = cart.reduce((n, l) => n + l.qty * productById[l.id].precio, 0);
     $("#cartCount").textContent = count;
-    $("#cartTotal").textContent = fmt(total);
+    $("#cartTotal").textContent = conSesion() ? fmt(totalCarrito()) : "Ingresa para ver";
     $("#cartFoot").hidden = cart.length === 0;
+    $("#sendOrder").textContent = conSesion() ? "Enviar pedido por WhatsApp" : "Ingresa para enviar tu pedido";
+    if (conSesion() && !$("#custName").value) $("#custName").value = sesion.usuario.nombre || "";
 
     $("#cartItems").innerHTML = cart.length === 0
       ? `<div class="cart__empty"><p>Tu carrito está vacío.</p><a href="#catalogo" class="btn btn--ghost" data-close-cart>Ver catálogo</a></div>`
@@ -259,7 +293,7 @@
               <div class="line__thumb" style="${sectorColor(p.categoria)}">${media(p)}</div>
               <div>
                 <p class="line__name">${esc(p.nombre)}</p>
-                <p class="line__meta">${lineMeta(l).map(esc).join(" · ") || fmt(p.precio)}</p>
+                <p class="line__meta">${lineMeta(l).map(esc).join(" · ") || esc(sectorById[p.categoria]?.nombre || "")}</p>
                 <div class="qty">
                   <button data-line="${i}" data-delta="-1" aria-label="Menos">−</button>
                   <span>${l.qty}</span>
@@ -267,7 +301,7 @@
                 </div>
               </div>
               <div class="line__right">
-                <strong>${fmt(p.precio * l.qty)}</strong>
+                <strong>${subtotal(p, l.qty)}</strong>
                 <button class="remove" data-remove="${i}">Quitar</button>
               </div>
             </div>`;
@@ -299,17 +333,19 @@
   });
 
   $("#sendOrder").addEventListener("click", () => {
+    if (!conSesion()) { closeCart(); openAuth("ingresar"); return; }
     const name = $("#custName").value.trim();
     if (!name) { toast("Escribe tu nombre para enviar el pedido"); $("#custName").focus(); return; }
     const city = $("#custCity").value.trim();
     const notes = $("#custNotes").value.trim();
-    const total = cart.reduce((n, l) => n + l.qty * productById[l.id].precio, 0);
+    const total = totalCarrito();
 
     const lines = cart.map((l, i) => {
       const p = productById[l.id];
       const meta = lineMeta(l);
-      return `${i + 1}. ${p.nombre} x${l.qty} = ${fmt(p.precio * l.qty)}${meta.length ? "\n   " + meta.join(" | ") : ""}`;
+      return `${i + 1}. ${p.nombre} x${l.qty} = ${subtotal(p, l.qty)}${meta.length ? "\n   " + meta.join(" | ") : ""}`;
     });
+    const u = sesion.usuario;
 
     const msg = [
       `Hola ${CFG.nombre || "STH"}, quiero hacer este pedido:`,
@@ -319,6 +355,8 @@
       `Total productos: ${fmt(total)}`,
       "",
       `Nombre: ${name}`,
+      `Correo: ${u.correo}`,
+      ...(u.telefono ? [`Celular: ${u.telefono}`] : []),
       ...(city ? [`Ciudad/barrio: ${city}`] : []),
       ...(notes ? [`Notas: ${notes}`] : [])
     ].join("\n");
@@ -355,8 +393,122 @@
     toastTimer = setTimeout(() => t.classList.remove("show"), 2200);
   }
 
+  /* ---------- Cuenta: ingresar, registrarse, recuperar ---------- */
+  const authModal = $("#authModal");
+  const AUTH = () => window.STH_AUTH;
+  const esAdmin = () => conSesion() &&
+    (CFG.administradores || []).map((c) => c.toLowerCase()).includes((sesion.usuario.correo || "").toLowerCase());
+
+  function openAuth(panel) {
+    if (conSesion()) panel = "cuenta";
+    $$(".auth__panel", authModal).forEach((el) => {
+      el.hidden = el.dataset.panel !== panel;
+      const err = $(".auth__error", el);
+      if (err) err.textContent = "";
+    });
+    if (panel === "cuenta") {
+      $("#acctName").textContent = sesion.usuario.nombre || "cliente";
+      $("#acctEmail").textContent = sesion.usuario.correo;
+      $("#adminLink").hidden = !esAdmin();
+    } else if (!sesion.configurado) {
+      $(`[data-panel="${panel}"] .auth__error`, authModal).textContent =
+        "El inicio de sesión aún no está activado en esta tienda.";
+    }
+    if (!authModal.open) authModal.showModal();
+    $(`[data-panel="${panel}"] input`, authModal)?.focus();
+  }
+
+  $$("[data-auth-close]", authModal).forEach((b) => b.addEventListener("click", () => authModal.close()));
+  authModal.addEventListener("click", (e) => { if (e.target === authModal) authModal.close(); });
+
+  // Envía un formulario de cuenta mostrando "procesando" y los errores en español.
+  function manejar(form, accion) {
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const err = $(".auth__error", form);
+      const btn = $('button[type="submit"]', form);
+      err.textContent = "";
+      if (!AUTH() || !sesion.configurado) { err.textContent = "El inicio de sesión aún no está activado en esta tienda."; return; }
+      const datos = Object.fromEntries(new FormData(form));
+      const texto = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = "Un momento…";
+      try {
+        await accion(datos, err);
+      } catch (ex) {
+        err.textContent = AUTH().mensaje(ex);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = texto;
+      }
+    });
+  }
+
+  manejar($("#loginForm"), async ({ correo, clave }, err) => {
+    if (!correo || !clave) { err.textContent = "Escribe tu correo y contraseña."; return; }
+    await AUTH().ingresar(correo, clave);
+    authModal.close();
+    $("#loginForm").reset();
+    toast("Sesión iniciada. Ya puedes ver los precios.");
+  });
+
+  manejar($("#registerForm"), async (d, err) => {
+    if (!d.nombre.trim() || !d.telefono.trim() || !d.correo.trim() || !d.clave) {
+      err.textContent = "Completa todos los campos.";
+      return;
+    }
+    if (d.clave.length < 6) { err.textContent = "La contraseña debe tener al menos 6 caracteres."; return; }
+    await AUTH().registrar(d);
+    authModal.close();
+    $("#registerForm").reset();
+    toast("¡Cuenta creada! Ya puedes ver los precios.");
+  });
+
+  manejar($("#resetForm"), async ({ correo }, err) => {
+    if (!correo) { err.textContent = "Escribe tu correo."; return; }
+    await AUTH().recuperar(correo);
+    err.textContent = "";
+    toast("Te enviamos un enlace a tu correo. Revisa también la carpeta de spam.");
+    openAuth("ingresar");
+  });
+
+  $("#logoutBtn").addEventListener("click", async () => {
+    try { await AUTH().salir(); } catch { /* sin conexión */ }
+    authModal.close();
+    toast("Sesión cerrada");
+  });
+
+  $("#accountBtn").addEventListener("click", () => openAuth("ingresar"));
+
+  function renderSesion() {
+    const btn = $("#accountBtn");
+    btn.classList.toggle("is-in", conSesion());
+    const nombre = conSesion() ? (sesion.usuario.nombre || "").split(" ")[0] || "Mi cuenta" : "Ingresar";
+    $("#accountLabel").textContent = nombre;
+    btn.setAttribute("aria-label", conSesion() ? "Mi cuenta" : "Ingresar o crear cuenta");
+    $("#priceNotice").hidden = !sesion.listo || conSesion();
+    renderFeatured();
+    renderProducts();
+    renderCart();
+  }
+
+  window.addEventListener("sth:auth", (e) => {
+    sesion = { ...sesion, ...e.detail };
+    if (sesion.error && conSesion()) toast(sesion.error);
+    renderSesion();
+  });
+
+  // Si js/auth.js no carga (sin internet o bloqueado), no dejamos la página en "Cargando…".
+  setTimeout(() => {
+    if (sesion.listo) return;
+    sesion = { ...sesion, listo: true, configurado: false, error: "No se pudo conectar con el servicio de cuentas." };
+    renderSesion();
+  }, 10000);
+
   /* ---------- Eventos generales ---------- */
   document.addEventListener("click", (e) => {
+    const a = e.target.closest("[data-auth]");
+    if (a) { openAuth(a.dataset.auth); return; }
     const open = e.target.closest("[data-open]");
     if (open) { openProduct(open.dataset.open); return; }
     const sec = e.target.closest("[data-sector]");
@@ -383,4 +535,9 @@
   const initial = new URLSearchParams(location.search).get("sector");
   setSector(initial || "todos", false);
   renderCart();
+  // Si auth.js terminó antes que este archivo, tomamos su estado.
+  if (window.STH_AUTH?.estado?.listo) {
+    sesion = { ...sesion, ...window.STH_AUTH.estado };
+    renderSesion();
+  }
 })();
