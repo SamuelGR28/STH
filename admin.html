@@ -68,6 +68,13 @@
     .icon-pick button { aspect-ratio: 1; border: 1.5px solid var(--line); border-radius: 8px; background: var(--surface); cursor: pointer; padding: 4px; }
     .icon-pick button[aria-pressed="true"] { border-color: var(--ink); background: var(--tint); box-shadow: 0 0 0 2px var(--ink) inset; }
     .icon-pick svg { width: 100%; height: 100%; }
+    .stock-edit { display: flex; gap: 6px; align-items: center; max-width: 240px; }
+    .stock-edit input { text-align: center; }
+    .stock-edit .btn { width: 40px; height: 40px; padding: 0; flex: none; }
+    .tag { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: .75rem; font-weight: 700; }
+    .tag--out { background: #fde2e1; color: #b42318; }
+    .tag--low { background: #fff1d6; color: #8a5a00; }
+    .tag--ok { background: #e8f5ec; color: #17603a; }
     .modal--form { width: min(560px, 100% - 32px); }
     @media (max-width: 520px) {
       .admin__row { grid-template-columns: 1fr 130px; }
@@ -204,6 +211,13 @@
       <label class="field">Colores / estilos <span class="hintline">(opcional, separados por coma)</span>
         <input type="text" name="colores" maxlength="200">
       </label>
+      <div class="field"><label for="pfStock">Unidades disponibles <span class="hintline">(vacío = sin límite / por encargo · 0 = agotado)</span></label>
+        <div class="stock-edit">
+          <button type="button" class="btn btn--ghost btn--sm" data-stock="-1" aria-label="Restar una unidad">−</button>
+          <input type="text" id="pfStock" name="stock" inputmode="numeric" placeholder="Sin límite">
+          <button type="button" class="btn btn--ghost btn--sm" data-stock="1" aria-label="Sumar una unidad">+</button>
+        </div>
+      </div>
       <label class="check"><input type="checkbox" name="personalizable"> El cliente puede escribir un nombre o frase</label>
       <label class="check"><input type="checkbox" name="destacado"> Mostrar en "Lo más pedido"</label>
 

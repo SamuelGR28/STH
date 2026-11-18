@@ -58,7 +58,9 @@ $$(".tab").forEach((t) => t.addEventListener("click", () => verPestana(t.dataset
 /* ---------- Lista de productos ---------- */
 function renderProductos() {
   const lista = productos();
-  $("#prodCount").textContent = `${lista.length} producto${lista.length === 1 ? "" : "s"} en la tienda`;
+  const agotados = lista.filter((p) => p.stock === 0).length;
+  $("#prodCount").textContent = `${lista.length} producto${lista.length === 1 ? "" : "s"} en la tienda`
+    + (agotados ? ` · ${agotados} agotado${agotados === 1 ? "" : "s"}` : "");
   const grupos = SECTORES.map((s) => {
     const items = lista.filter((p) => p.categoria === s.id);
     return `<section class="admin__group"><h2>${esc(s.nombre)} <small>${items.length}</small></h2>${
@@ -68,7 +70,7 @@ function renderProductos() {
         const extras = [p.personalizable && "Personalizable", p.destacado && "Destacado"].filter(Boolean).join(" · ");
         return `<div class="prod">
             <div class="prod__thumb" style="${UI.estilo(sectorDe(p.categoria), p.categoria)}">${p.imagen ? `<img src="${esc(p.imagen)}" alt="">` : icon(p.categoria)}</div>
-            <div><p class="prod__name">${esc(p.nombre)}</p><p class="prod__meta">${precio}${extras ? " · " + extras : ""}</p></div>
+            <div><p class="prod__name">${esc(p.nombre)} ${etiquetaStock(p)}</p><p class="prod__meta">${precio}${extras ? " · " + extras : ""}</p></div>
             <div class="prod__actions">
               <button type="button" class="btn btn--ghost btn--sm" data-edit="${esc(p.id)}">Editar</button>
               <button type="button" class="btn btn--ghost btn--sm btn--danger" data-del="${esc(p.id)}">Eliminar</button>
@@ -112,6 +114,14 @@ $("#prodList").addEventListener("click", async (e) => {
     renderProductos();
   }
 });
+
+// Etiqueta de disponibilidad para la lista del administrador.
+function etiquetaStock(p) {
+  if (!Number.isInteger(p.stock)) return "";
+  if (p.stock === 0) return '<span class="tag tag--out">Agotado</span>';
+  if (p.stock <= 3) return `<span class="tag tag--low">Quedan ${p.stock}</span>`;
+  return `<span class="tag tag--ok">${p.stock} disponibles</span>`;
+}
 
 /* ---------- Formulario de producto ---------- */
 const modal = $("#prodModal");
@@ -160,6 +170,7 @@ function abrirForm(id) {
   form.destacado.checked = Boolean(p?.destacado);
   const v = p ? Number(estado.precios[p.id]) : 0;
   form.precio.value = v > 0 ? v : "";
+  form.stock.value = Number.isInteger(p?.stock) && p.stock >= 0 ? p.stock : "";
   fotos = p?.imagen ? [p.imagen] : [];
   cargandoFotos = Boolean(p && p.fotosExtra > 0);
   pintarFotos();
@@ -176,6 +187,12 @@ function abrirForm(id) {
 }
 
 $("#addProduct").addEventListener("click", () => abrirForm(null));
+// Botones − / + de unidades disponibles.
+$$("[data-stock]", form).forEach((b) => b.addEventListener("click", () => {
+  const actual = parseInt(String(form.stock.value).replace(/\D/g, ""), 10);
+  const base = Number.isFinite(actual) ? actual : 0;
+  form.stock.value = Math.max(0, base + Number(b.dataset.stock));
+}));
 $("#prodClose").addEventListener("click", () => modal.close());
 modal.addEventListener("click", (e) => { if (e.target === modal) modal.close(); });
 
@@ -248,6 +265,8 @@ form.addEventListener("submit", async (e) => {
   if (!nombre) { err.textContent = "Escribe el nombre del producto."; form.nombre.focus(); return; }
   if (!form.categoria.value) { err.textContent = "Elige un sector."; return; }
   const precio = parseInt(String(form.precio.value).replace(/\D/g, ""), 10) || 0;
+  const stockTxt = String(form.stock.value).replace(/\D/g, "");
+  const stock = stockTxt === "" ? null : Math.min(99999, parseInt(stockTxt, 10));
 
   const anterior = editando ? productos().find((p) => p.id === editando) : null;
   const producto = {
@@ -258,6 +277,7 @@ form.addEventListener("submit", async (e) => {
     imagen: fotos[0] || "",
     personalizable: form.personalizable.checked,
     destacado: form.destacado.checked,
+    stock,   // null = sin límite / por encargo
     orden: anterior?.orden ?? Date.now()
   };
   const tallas = lista(form.tallas.value);

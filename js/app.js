@@ -80,7 +80,18 @@
     return Number.isFinite(v) && v > 0 ? v : null;
   }
 
-  const LOCK = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>';
+  // Unidades disponibles: número, o null si no hay límite (por encargo).
+  const stockDe = (p) => (Number.isInteger(p?.stock) && p.stock >= 0 ? p.stock : null);
+
+  function stockHTML(p) {
+    const s = stockDe(p);
+    if (s === null) return "";
+    if (s === 0) return '<p class="stock stock--out">Agotado</p>';
+    if (s <= 3) return `<p class="stock stock--low">¡Últimas ${s} unidad${s === 1 ? "" : "es"}!</p>`;
+    return `<p class="stock stock--ok">${s} disponibles</p>`;
+  }
+
+  const LOCK ='<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>';
 
   function precioHTML(p) {
     if (!sesion.listo) return '<span class="price-wait">Cargando…</span>';
@@ -161,7 +172,7 @@
   /* ---------- Productos ---------- */
   function cardHTML(p) {
     const s = sectorById[p.categoria];
-    return `<article class="card" style="${sectorColor(p.categoria)}">
+    return `<article class="card${stockDe(p) === 0 ? " is-out" : ""}" style="${sectorColor(p.categoria)}">
         <button class="card__media" data-open="${esc(p.id)}" aria-label="Ver ${esc(p.nombre)}">
           ${media(p)}
           ${p.personalizable ? '<span class="badge">Personalizable</span>' : ""}
@@ -171,6 +182,7 @@
           <span class="card__sector">${esc(s ? s.nombre : "")}</span>
           <h3 class="card__title">${esc(p.nombre)}</h3>
           <p class="card__desc">${esc(p.descripcion)}</p>
+          ${stockHTML(p)}
           <div class="card__foot">
             ${precioHTML(p)}
             <button class="btn btn--primary card__add" data-open="${esc(p.id)}">${conSesion() ? "Agregar" : "Ver"}</button>
@@ -258,7 +270,10 @@
     $("#modalTitle").textContent = p.nombre;
     $("#modalPrice").innerHTML = precioHTML(p);
     $("#modalDesc").textContent = p.descripcion;
-    $("#modalAdd").textContent = conSesion() ? "Agregar al carrito" : "Ingresa para ver el precio y pedir";
+    $("#modalStock").innerHTML = stockHTML(p);
+    const agotado = stockDe(p) === 0;
+    $("#modalAdd").textContent = !conSesion() ? "Ingresa para ver el precio y pedir" : (agotado ? "Agotado" : "Agregar al carrito");
+    $("#modalAdd").disabled = conSesion() && agotado;
 
     let opts = "";
     if (p.tallas?.length) opts += pills("talla", "Talla", p.tallas, false);
@@ -277,7 +292,11 @@
     const step = e.target.closest("[data-step]");
     if (!step) return;
     const input = $("#modalQty");
-    input.value = Math.min(999, Math.max(1, (parseInt(input.value, 10) || 1) + Number(step.dataset.step)));
+    const libres = current ? disponiblesPara(current) : null;
+    const max = libres === null ? 999 : Math.max(1, libres);
+    const nuevo = (parseInt(input.value, 10) || 1) + Number(step.dataset.step);
+    if (nuevo > max && libres !== null) toast(`Solo quedan ${libres} disponible${libres === 1 ? "" : "s"}`);
+    input.value = Math.min(max, Math.max(1, nuevo));
   });
 
   $("#productForm").addEventListener("submit", (e) => {
@@ -285,6 +304,18 @@
     if (!conSesion()) {
       // El diálogo se cierra solo (method="dialog"); luego abrimos el de ingreso.
       setTimeout(() => openAuth("ingresar"), 0);
+      return;
+    }
+    const libres = disponiblesPara(current);
+    if (libres !== null && libres <= 0) {
+      e.preventDefault();
+      toast(stockDe(current) === 0 ? "Producto agotado" : "Ya tienes en el carrito todas las unidades disponibles");
+      return;
+    }
+    if (libres !== null && (parseInt($("#modalQty").value, 10) || 1) > libres) {
+      e.preventDefault();
+      $("#modalQty").value = libres;
+      toast(`Solo quedan ${libres} disponible${libres === 1 ? "" : "s"}`);
       return;
     }
     const form = e.target;
@@ -304,6 +335,14 @@
 
   /* ---------- Carrito ---------- */
   const lineKey = (l) => [l.id, l.talla, l.color, l.personalizacion].join("|");
+
+  // Unidades que todavía se pueden agregar (null = sin límite).
+  function disponiblesPara(p) {
+    const s = stockDe(p);
+    if (s === null) return null;
+    const enCarrito = cart.filter((l) => l.id === p.id).reduce((n, l) => n + l.qty, 0);
+    return Math.max(0, s - enCarrito);
+  }
 
   function addToCart(item) {
     const existing = cart.find((l) => lineKey(l) === lineKey(item));
@@ -362,6 +401,11 @@
     const r = e.target.closest("[data-remove]");
     if (d) {
       const l = cart[d.dataset.line];
+      const libres = disponiblesPara(productById[l.id]);
+      if (Number(d.dataset.delta) > 0 && libres !== null && libres <= 0) {
+        toast(`No hay más unidades disponibles de ${productById[l.id].nombre}`);
+        return;
+      }
       l.qty = Math.min(999, l.qty + Number(d.dataset.delta));
       if (l.qty < 1) cart.splice(d.dataset.line, 1);
     } else if (r) {
@@ -383,6 +427,16 @@
 
   $("#sendOrder").addEventListener("click", () => {
     if (!conSesion()) { closeCart(); openAuth("ingresar"); return; }
+    // Revisa que no se pidan más unidades de las disponibles (el stock pudo cambiar).
+    const excedido = [...new Set(cart.map((l) => l.id))].map((id) => productById[id]).find((p) => {
+      const s = stockDe(p);
+      return s !== null && cart.filter((l) => l.id === p.id).reduce((n, l) => n + l.qty, 0) > s;
+    });
+    if (excedido) {
+      const s = stockDe(excedido);
+      toast(s === 0 ? `${excedido.nombre} se agotó. Quítalo del carrito.` : `De ${excedido.nombre} solo hay ${s} disponible${s === 1 ? "" : "s"}. Ajusta la cantidad.`);
+      return;
+    }
     const name = $("#custName").value.trim();
     if (!name) { toast("Escribe tu nombre para enviar el pedido"); $("#custName").focus(); return; }
     const city = $("#custCity").value.trim();
