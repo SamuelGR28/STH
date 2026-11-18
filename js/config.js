@@ -25,17 +25,17 @@ window.STH_CONFIG = {
 
   // Correos de los administradores que pueden editar precios en admin.html.
   // Deben coincidir con la lista de firestore.rules.
-  administradores: ["correo-del-dueno@ejemplo.com"],
+  administradores: ["samuelgira237@gmail.com"],
 
   // Configuración de Firebase (cuentas de usuario y precios).
   // Cópiala de: Consola de Firebase > Configuración del proyecto > Tus apps > Web.
   // Estos datos son públicos por diseño; la seguridad está en firestore.rules.
   firebase: {
-    apiKey: "",
-    authDomain: "",
-    projectId: "",
-    storageBucket: "",
-    messagingSenderId: "",
-    appId: ""
+    apiKey: "AIzaSyAqshfJMam9wCFDX-stwyxXMlFSYkHxTmE",
+    authDomain: "sth-tienda.firebaseapp.com",
+    projectId: "sth-tienda",
+    storageBucket: "sth-tienda.firebasestorage.app",
+    messagingSenderId: "911161714070",
+    appId: "1:911161714070:web:6f02e2d7b29d832282e9b7"
   }
 };
