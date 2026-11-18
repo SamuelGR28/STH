@@ -25,7 +25,7 @@ window.STH_CONFIG = {
 
   // Correos de los administradores que pueden editar precios en admin.html.
   // Deben coincidir con la lista de firestore.rules.
-  administradores: ["samuelgira237@gmail.com"],
+  administradores: ["samuelgira237@gmail.com", "copiala29@gmail.com"],
 
   // Configuración de Firebase (cuentas de usuario y precios).
   // Cópiala de: Consola de Firebase > Configuración del proyecto > Tus apps > Web.

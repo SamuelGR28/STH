@@ -15,7 +15,7 @@ service cloud.firestore {
       // No exige correo verificado: la cuenta del dueño ya existe y Firebase
       // no permite crear otra cuenta con el mismo correo.
       return conSesion()
-        && request.auth.token.email in ['samuelgira237@gmail.com'];
+        && request.auth.token.email in ['samuelgira237@gmail.com', 'copiala29@gmail.com'];
     }
 
     // Precios: solo los ven usuarios con sesión; solo el administrador los cambia.
