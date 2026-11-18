@@ -17,7 +17,8 @@ import {
   signOut, sendPasswordResetEmail, sendEmailVerification, updateProfile
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import {
-  getFirestore, doc, getDoc, getDocs, setDoc, collection, writeBatch, deleteField, serverTimestamp
+  getFirestore, doc, getDoc, getDocs, setDoc, collection, writeBatch, deleteField, serverTimestamp, runTransaction,
+  query, orderBy, limit
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const CFG = window.STH_CONFIG || {};
@@ -61,6 +62,23 @@ const mensaje = (e) => MENSAJES[e?.code] || "Ocurrió un error. Intenta de nuevo
 
 let auth, db;
 const cacheFotos = {};
+
+// Registro de un cambio de inventario (colección "movimientos").
+function movimiento(productoId, nombre, tipo, antes, despues, nota) {
+  const a = Number.isInteger(antes) ? antes : null;
+  const d = Number.isInteger(despues) ? despues : null;
+  return {
+    productoId,
+    producto: nombre || productoId,
+    tipo,
+    cantidad: a !== null && d !== null ? d - a : (d ?? 0),
+    stockAntes: a,
+    stockDespues: d,
+    nota: String(nota || "").slice(0, 200),
+    por: estado.usuario?.correo || "",
+    fecha: serverTimestamp()
+  };
+}
 
 const ordenar = (lista) => lista.slice().sort((a, b) =>
   (a.orden ?? 1e9) - (b.orden ?? 1e9) || String(a.nombre).localeCompare(String(b.nombre), "es"));
@@ -171,12 +189,87 @@ window.STH_AUTH = {
     }
     batch.set(doc(db, "productos", id), datos);
     batch.set(doc(db, "precios", "catalogo"), { [id]: Number(precio) > 0 ? Number(precio) : 0 }, { merge: true });
+    // Si cambiaron las unidades desde el formulario, queda registrado en el inventario.
+    const antes = estado.productos.find((p) => p.id === id);
+    const stockAntes = Number.isInteger(antes?.stock) ? antes.stock : null;
+    const stockDespues = Number.isInteger(datos.stock) ? datos.stock : null;
+    if (stockAntes !== stockDespues) {
+      batch.set(doc(collection(db, "movimientos")), movimiento(id, datos.nombre, "ajuste",
+        stockAntes, stockDespues, antes ? "Editado desde Productos" : "Producto nuevo"));
+    }
     await batch.commit();
     const lista = estado.productos.filter((p) => p.id !== id);
     lista.push({ id, ...datos });
     estado.productos = ordenar(lista);
     estado.precios = { ...estado.precios, [id]: Number(precio) > 0 ? Number(precio) : 0 };
     avisar();
+  },
+
+  // Descuenta del inventario las unidades de un pedido enviado por WhatsApp
+  // (informativo: el pedido real se confirma por WhatsApp). items = [{ id, qty }].
+  // Productos sin control de inventario no se tocan. Devuelve { id: nuevoStock }.
+  async descontarStock(items) {
+    if (!db || !estado.catalogoGestionado || !estado.usuario) return {};
+    const porProducto = {};
+    items.forEach(({ id, qty }) => { porProducto[id] = (porProducto[id] || 0) + Math.max(0, qty | 0); });
+    const ids = Object.keys(porProducto).filter((id) =>
+      Number.isInteger(estado.productos?.find((p) => p.id === id)?.stock));
+    if (!ids.length) return {};
+    const u = estado.usuario;
+    const nuevos = await runTransaction(db, async (tx) => {
+      const refs = ids.map((id) => doc(db, "productos", id));
+      const snaps = await Promise.all(refs.map((r) => tx.get(r)));
+      const res = {};
+      snaps.forEach((s, i) => {
+        const actual = s.exists() ? s.data().stock : null;
+        if (!Number.isInteger(actual) || actual <= 0) return;
+        const nuevo = Math.max(0, actual - Math.min(50, porProducto[ids[i]]));
+        res[ids[i]] = nuevo;
+        tx.update(refs[i], { stock: nuevo });
+        tx.set(doc(collection(db, "movimientos")), {
+          ...movimiento(ids[i], s.data().nombre, "pedido", actual, nuevo, "Pedido web por WhatsApp"),
+          cliente: `${u.nombre || ""} · ${u.correo || ""}${u.telefono ? " · " + u.telefono : ""}`,
+          uid: u.uid
+        });
+      });
+      return res;
+    });
+    estado.productos = estado.productos.map((p) => (p.id in nuevos ? { ...p, stock: nuevos[p.id] } : p));
+    avisar();
+    return nuevos;
+  },
+
+  // Movimiento de inventario hecho por el administrador.
+  // tipo: "entrada" (suma), "salida" (resta), "ajuste" (fija el valor), "sin-limite" (deja de controlar).
+  async moverInventario(id, tipo, cantidad, nota = "") {
+    await asegurarGestionado();
+    const n = Math.max(0, Math.min(99999, cantidad | 0));
+    const ref = doc(db, "productos", id);
+    const nuevo = await runTransaction(db, async (tx) => {
+      const s = await tx.get(ref);
+      if (!s.exists()) throw new Error("El producto ya no existe.");
+      const actual = Number.isInteger(s.data().stock) ? s.data().stock : null;
+      let resultado;
+      if (tipo === "entrada") resultado = (actual ?? 0) + n;
+      else if (tipo === "salida") resultado = Math.max(0, (actual ?? 0) - n);
+      else if (tipo === "ajuste") resultado = n;
+      else resultado = null; // sin límite
+      tx.update(ref, { stock: resultado });
+      tx.set(doc(collection(db, "movimientos")), movimiento(id, s.data().nombre, tipo, actual, resultado, nota));
+      return resultado;
+    });
+    estado.productos = estado.productos.map((p) => (p.id === id ? { ...p, stock: nuevo } : p));
+    avisar();
+    return nuevo;
+  },
+
+  // Últimos movimientos del inventario (solo administradores).
+  async cargarMovimientos(cuantos = 100) {
+    const snap = await getDocs(query(collection(db, "movimientos"), orderBy("fecha", "desc"), limit(cuantos)));
+    return snap.docs.map((d) => {
+      const m = d.data();
+      return { id: d.id, ...m, fecha: m.fecha?.toDate ? m.fecha.toDate() : null };
+    });
   },
 
   async eliminarProducto(id) {

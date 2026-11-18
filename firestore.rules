@@ -28,7 +28,28 @@ service cloud.firestore {
     match /productos/{id} {
       allow read: if true;
       allow write: if esAdmin();
+      // Un cliente con sesión solo puede BAJAR las unidades disponibles al enviar un pedido
+      // (máximo 50 por pedido). No puede cambiar nada más del producto.
+      allow update: if conSesion()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['stock'])
+        && resource.data.stock is int
+        && request.resource.data.stock is int
+        && request.resource.data.stock >= 0
+        && request.resource.data.stock < resource.data.stock
+        && resource.data.stock - request.resource.data.stock <= 50;
     }
+    // Inventario: historial de movimientos. Solo el administrador lo ve.
+    // Un cliente con sesión solo puede registrar la salida de su propio pedido web.
+    match /movimientos/{id} {
+      allow read, update, delete: if esAdmin();
+      allow create: if esAdmin() || (conSesion()
+        && request.resource.data.tipo == 'pedido'
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.cantidad is int
+        && request.resource.data.cantidad < 0
+        && request.resource.data.cantidad >= -50);
+    }
+
     match /fotos/{id} {
       allow read: if true;
       allow write: if esAdmin();

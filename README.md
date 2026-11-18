@@ -61,6 +61,21 @@ La foto se reduce sola a 800 px y se guarda en Firebase. No hace falta subirla a
 
 `js/productos.js` solo tiene los productos de ejemplo. La tienda los muestra hasta que hagas el primer cambio en **Productos**. En ese momento se copian a Firebase, y desde entonces se ignora el archivo.
 
+### Inventario
+
+En `admin.html`, pestaña **Inventario**:
+
+- Arriba ves el resumen: unidades totales, productos con control, productos por agotarse (3 o menos) y agotados.
+- **− / +**: resta o suma 1 unidad al instante.
+- **Movimiento**:
+  - **Entrada**: llegó mercancía.
+  - **Salida**: venta en local, daño, regalo…
+  - **Conteo**: fija el número exacto después de contar.
+  - **Sin control**: el producto es por encargo y no tiene límite de unidades.
+- **Historial de movimientos**: cada cambio queda registrado con fecha, cantidad, unidades que quedan, nota y quién lo hizo.
+
+Cuando un cliente envía un pedido por WhatsApp, la tienda descuenta esas unidades y lo registra como **Pedido web** con el nombre, correo y celular del cliente. Es informativo: si el pedido no se concreta, registra una **Entrada** para devolver las unidades.
+
 ### Agregar, editar, ordenar o quitar sectores
 
 En `admin.html`, pestaña **Sectores**:

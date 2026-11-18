@@ -3,6 +3,7 @@
    - Productos: agregar, editar y eliminar (con foto).
    - Precios: editar todos los precios a la vez.
    - Sectores: agregar, editar, ordenar y eliminar.
+   - Inventario: entradas, salidas, conteos e historial de movimientos.
    La seguridad real está en firestore.rules: aunque alguien
    abra esta página, solo los administradores pueden guardar.
    ========================================================= */
@@ -53,7 +54,10 @@ function verPestana(nombre) {
   $$(".tab").forEach((t) => t.setAttribute("aria-selected", t.dataset.tab === nombre));
   $$("[data-view]").forEach((v) => (v.hidden = v.dataset.view !== nombre));
 }
-$$(".tab").forEach((t) => t.addEventListener("click", () => verPestana(t.dataset.tab)));
+$$(".tab").forEach((t) => t.addEventListener("click", () => {
+  verPestana(t.dataset.tab);
+  if (t.dataset.tab === "inventario") cargarHistorial();
+}));
 
 /* ---------- Lista de productos ---------- */
 function renderProductos() {
@@ -302,6 +306,170 @@ form.addEventListener("submit", async (e) => {
   }
 });
 
+/* ---------- Inventario ---------- */
+let filtroInv = "todos";
+let historialCargado = false;
+
+const stockDe = (p) => (Number.isInteger(p?.stock) && p.stock >= 0 ? p.stock : null);
+
+function renderInventario() {
+  const lista = productos();
+  const controlados = lista.filter((p) => stockDe(p) !== null);
+  const unidades = controlados.reduce((n, p) => n + p.stock, 0);
+  const agotados = controlados.filter((p) => p.stock === 0).length;
+  const bajos = controlados.filter((p) => p.stock > 0 && p.stock <= 3).length;
+  $("#invSum").innerHTML = `
+    <div><strong>${unidades}</strong><span>unidades en inventario</span></div>
+    <div><strong>${controlados.length}</strong><span>productos con control</span></div>
+    <div><strong style="color:#a15c00">${bajos}</strong><span>por agotarse (≤ 3)</span></div>
+    <div><strong style="color:#b42318">${agotados}</strong><span>agotados</span></div>`;
+
+  const visibles = lista.filter((p) => {
+    const s = stockDe(p);
+    if (filtroInv === "bajo") return s !== null && s > 0 && s <= 3;
+    if (filtroInv === "agotado") return s === 0;
+    if (filtroInv === "libre") return s === null;
+    return true;
+  });
+
+  $("#invList").innerHTML = visibles.length ? visibles.map((p) => {
+    const s = stockDe(p);
+    const cls = s === null ? "free" : s === 0 ? "out" : s <= 3 ? "low" : "";
+    const sector = sectorDe(p.categoria);
+    return `<div class="inv">
+        <div class="prod__thumb" style="${UI.estilo(sector, p.categoria)}">${p.imagen ? `<img src="${esc(p.imagen)}" alt="">` : icon(p.categoria)}</div>
+        <div><p class="prod__name">${esc(p.nombre)}</p><p class="prod__meta">${esc(sector?.nombre || "Sin sector")}</p></div>
+        <div class="inv__qty">
+          ${s === null
+            ? `<span class="inv__num free">Sin control</span>`
+            : `<button type="button" data-rapido="-1" data-id="${esc(p.id)}" aria-label="Restar una unidad" ${s === 0 ? "disabled" : ""}>−</button>
+               <span class="inv__num ${cls}">${s}</span>
+               <button type="button" data-rapido="1" data-id="${esc(p.id)}" aria-label="Sumar una unidad">+</button>`}
+        </div>
+        <div class="inv__mov"><button type="button" class="btn btn--ghost btn--sm" data-mov="${esc(p.id)}">${s === null ? "Controlar" : "Movimiento"}</button></div>
+      </div>`;
+  }).join("") : '<p class="muted" style="margin:0">No hay productos en este filtro.</p>';
+}
+
+$("#invFiltro").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-f]");
+  if (!b) return;
+  filtroInv = b.dataset.f;
+  $$("#invFiltro .chip").forEach((c) => c.setAttribute("aria-selected", c === b));
+  renderInventario();
+});
+
+// − / + rápidos: registran una salida o entrada de 1 unidad.
+$("#invList").addEventListener("click", async (e) => {
+  const r = e.target.closest("[data-rapido]");
+  if (r) {
+    const delta = Number(r.dataset.rapido);
+    $$("[data-rapido]", r.parentElement).forEach((b) => (b.disabled = true));
+    try {
+      await AUTH().moverInventario(r.dataset.id, delta > 0 ? "entrada" : "salida", 1, "Ajuste rápido");
+      cargarHistorial();
+    } catch (ex) {
+      toast(AUTH().mensaje(ex));
+      renderInventario();
+    }
+    return;
+  }
+  const m = e.target.closest("[data-mov]");
+  if (m) abrirMovimiento(m.dataset.mov);
+});
+
+const movModal = $("#movModal");
+const movForm = $("#movForm");
+let movProducto = null;
+
+function previewMovimiento() {
+  const p = productos().find((x) => x.id === movProducto);
+  if (!p) return;
+  const tipo = movForm.tipo.value;
+  const actual = stockDe(p);
+  const n = parseInt(String(movForm.cantidad.value).replace(/\D/g, ""), 10);
+  const etiquetas = { entrada: "Unidades que entran", salida: "Unidades que salen", ajuste: "Unidades contadas (el inventario queda en este número)" };
+  $("#movCantWrap").hidden = tipo === "sin-limite";
+  $("#movCantLabel").textContent = etiquetas[tipo] || "";
+  let resultado = "";
+  if (tipo === "sin-limite") resultado = "El producto queda sin control de inventario (por encargo).";
+  else if (Number.isFinite(n)) {
+    const base = actual ?? 0;
+    const final = tipo === "entrada" ? base + n : tipo === "salida" ? Math.max(0, base - n) : n;
+    resultado = `Quedarán ${final} unidad${final === 1 ? "" : "es"}.`;
+  }
+  $("#movResultado").textContent = resultado;
+}
+
+function abrirMovimiento(id) {
+  const p = productos().find((x) => x.id === id);
+  if (!p) return;
+  movProducto = id;
+  movForm.reset();
+  const s = stockDe(p);
+  $("#movTitle").textContent = p.nombre;
+  $("#movActual").textContent = s === null ? "Hoy: sin control de inventario." : `Hoy hay ${s} unidad${s === 1 ? "" : "es"}.`;
+  movForm.tipo.value = s === null ? "ajuste" : "entrada";
+  $("#movError").textContent = "";
+  previewMovimiento();
+  movModal.showModal();
+  movForm.cantidad.focus();
+}
+
+["input", "change"].forEach((ev) => movForm.addEventListener(ev, previewMovimiento));
+$("#movClose").addEventListener("click", () => movModal.close());
+movModal.addEventListener("click", (e) => { if (e.target === movModal) movModal.close(); });
+
+movForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const tipo = movForm.tipo.value;
+  const txt = String(movForm.cantidad.value).replace(/\D/g, "");
+  const err = $("#movError");
+  err.textContent = "";
+  if (tipo !== "sin-limite" && txt === "") { err.textContent = "Escribe la cantidad."; movForm.cantidad.focus(); return; }
+  const n = parseInt(txt || "0", 10);
+  if ((tipo === "entrada" || tipo === "salida") && n <= 0) { err.textContent = "La cantidad debe ser mayor que 0."; return; }
+  const btn = $("#movSave");
+  btn.disabled = true;
+  btn.textContent = "Guardando…";
+  try {
+    await AUTH().moverInventario(movProducto, tipo, n, movForm.nota.value.trim());
+    movModal.close();
+    toast("Movimiento registrado");
+    cargarHistorial();
+  } catch (ex) {
+    err.textContent = ex?.message && !ex.code ? ex.message : AUTH().mensaje(ex);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Registrar movimiento";
+  }
+});
+
+const TIPOS = { pedido: "Pedido web", entrada: "Entrada", salida: "Salida", ajuste: "Conteo / ajuste", "sin-limite": "Sin control" };
+const fechaCorta = new Intl.DateTimeFormat("es-CO", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
+
+async function cargarHistorial() {
+  historialCargado = true;
+  try {
+    const movs = await AUTH().cargarMovimientos(100);
+    $("#invHist").innerHTML = movs.length ? movs.map((m) => {
+      const q = Number(m.cantidad) || 0;
+      const qTxt = m.tipo === "sin-limite" ? "—" : `${q > 0 ? "+" : ""}${q}`;
+      const final = Number.isInteger(m.stockDespues) ? `queda ${m.stockDespues}` : "sin control";
+      const detalle = [m.cliente, m.nota, m.tipo !== "pedido" && m.por].filter(Boolean).map(esc).join(" · ");
+      return `<div class="hist">
+          <time>${m.fecha ? fechaCorta.format(m.fecha) : "ahora"}</time>
+          <div><strong>${esc(m.producto)}</strong> · ${esc(TIPOS[m.tipo] || m.tipo)}<small>${detalle}</small></div>
+          <div class="hist__q ${q > 0 ? "mas" : q < 0 ? "menos" : ""}">${qTxt}<small>${final}</small></div>
+        </div>`;
+    }).join("") : '<p class="muted" style="margin:0">Aún no hay movimientos. Aparecerán aquí las entradas, salidas y los pedidos web.</p>';
+  } catch (ex) {
+    console.error(ex);
+    $("#invHist").innerHTML = `<p class="auth__error" style="margin:0">${esc(AUTH().mensaje(ex))}</p>`;
+  }
+}
+$("#invReload").addEventListener("click", cargarHistorial);
+
 /* ---------- Sectores ---------- */
 function renderSectores() {
   const lista = productos();
@@ -500,6 +668,8 @@ function render(nuevo) {
   }
   renderProductos();
   renderSectores();
+  renderInventario();
+  if (pestana === "inventario" && !historialCargado) cargarHistorial();
   // No redibujamos los precios mientras se están escribiendo.
   if (!$("#priceEditor").contains(document.activeElement)) renderPrecios();
   mostrar("#panel");

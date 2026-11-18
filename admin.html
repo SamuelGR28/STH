@@ -75,12 +75,38 @@
     .tag--out { background: #fde2e1; color: #b42318; }
     .tag--low { background: #fff1d6; color: #8a5a00; }
     .tag--ok { background: #e8f5ec; color: #17603a; }
+    .inv-sum { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
+    .inv-sum div { background: var(--surface); border-radius: 14px; box-shadow: var(--shadow); padding: 14px 16px; }
+    .inv-sum strong { display: block; font-family: var(--font-title); font-size: 1.7rem; line-height: 1.1; }
+    .inv-sum span { color: var(--muted); font-size: .85rem; }
+    .inv { display: grid; grid-template-columns: 48px 1fr auto auto; gap: 12px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--line); }
+    .inv:last-child { border-bottom: 0; }
+    .inv .prod__thumb { width: 48px; height: 48px; }
+    .inv__qty { display: flex; align-items: center; gap: 4px; }
+    .inv__qty button { width: 34px; height: 34px; border-radius: 50%; border: 1.5px solid var(--line); background: var(--surface); cursor: pointer; font-size: 1.05rem; }
+    .inv__qty button:disabled { opacity: .35; cursor: default; }
+    .inv__num { min-width: 52px; text-align: center; font-weight: 700; font-size: 1.1rem; }
+    .inv__num.out { color: #b42318; }
+    .inv__num.low { color: #a15c00; }
+    .inv__num.free { color: var(--muted); font-size: .8rem; font-weight: 500; }
+    .hist { display: grid; grid-template-columns: 110px 1fr auto; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--line); font-size: .9rem; }
+    .hist:last-child { border-bottom: 0; }
+    .hist time { color: var(--muted); font-size: .8rem; }
+    .hist__q { font-weight: 700; text-align: right; white-space: nowrap; }
+    .hist__q.mas { color: #17603a; }
+    .hist__q.menos { color: #b42318; }
+    .hist small { display: block; color: var(--muted); }
     .modal--form { width: min(560px, 100% - 32px); }
     @media (max-width: 520px) {
       .admin__row { grid-template-columns: 1fr 130px; }
       .prod { grid-template-columns: 48px 1fr; }
       .prod__actions { grid-column: 1 / -1; justify-content: flex-end; }
       .sec { grid-template-columns: 48px 1fr; }
+      .inv-sum { grid-template-columns: 1fr 1fr; }
+      .inv { grid-template-columns: 44px 1fr; }
+      .inv .inv__qty, .inv .inv__mov { grid-column: 2; }
+      .hist { grid-template-columns: 1fr auto; }
+      .hist time { grid-column: 1 / -1; }
       .sec .prod__actions { grid-column: 1 / -1; justify-content: flex-end; }
       .pform .two { grid-template-columns: 1fr; }
     }
@@ -134,6 +160,7 @@
 
       <div class="tabs" role="tablist">
         <button class="tab" role="tab" data-tab="productos" aria-selected="true">Productos</button>
+        <button class="tab" role="tab" data-tab="inventario" aria-selected="false">Inventario</button>
         <button class="tab" role="tab" data-tab="precios" aria-selected="false">Precios</button>
         <button class="tab" role="tab" data-tab="sectores" aria-selected="false">Sectores</button>
       </div>
@@ -145,6 +172,26 @@
           <button type="button" class="btn btn--primary" id="addProduct">+ Agregar producto</button>
         </div>
         <div class="admin__card" id="prodList"></div>
+      </div>
+
+      <!-- Inventario -->
+      <div data-view="inventario" hidden>
+        <div class="inv-sum" id="invSum"></div>
+        <div class="admin__bar" style="margin:4px 0 12px">
+          <div class="chips" id="invFiltro">
+            <button type="button" class="chip" data-f="todos" aria-selected="true">Todos</button>
+            <button type="button" class="chip" data-f="bajo" aria-selected="false">Por agotarse</button>
+            <button type="button" class="chip" data-f="agotado" aria-selected="false">Agotados</button>
+            <button type="button" class="chip" data-f="libre" aria-selected="false">Sin control</button>
+          </div>
+        </div>
+        <div class="admin__card" id="invList"></div>
+
+        <div class="admin__bar" style="margin:28px 0 12px">
+          <h2 style="margin:0;font-size:1.4rem">Historial de movimientos</h2>
+          <button type="button" class="btn btn--ghost btn--sm" id="invReload">Actualizar</button>
+        </div>
+        <div class="admin__card" id="invHist"><p class="muted" style="margin:0">Cargando…</p></div>
       </div>
 
       <!-- Sectores -->
@@ -223,6 +270,33 @@
 
       <p class="auth__error" id="pformError" role="alert"></p>
       <button class="btn btn--primary btn--block" type="submit" id="pformSave">Guardar producto</button>
+    </form>
+  </dialog>
+
+  <!-- Movimiento de inventario -->
+  <dialog class="modal modal--form" id="movModal" aria-labelledby="movTitle">
+    <form class="pform" id="movForm" novalidate>
+      <button type="button" class="icon-btn modal__close" id="movClose" aria-label="Cerrar">✕</button>
+      <p class="eyebrow">Inventario</p>
+      <h3 id="movTitle">Movimiento</h3>
+      <p class="muted" id="movActual"></p>
+      <div class="field">Tipo de movimiento
+        <div class="pills" id="movTipos">
+          <input type="radio" name="tipo" id="mt-entrada" value="entrada" checked><label for="mt-entrada">Entrada (+)</label>
+          <input type="radio" name="tipo" id="mt-salida" value="salida"><label for="mt-salida">Salida (−)</label>
+          <input type="radio" name="tipo" id="mt-ajuste" value="ajuste"><label for="mt-ajuste">Conteo (fijar)</label>
+          <input type="radio" name="tipo" id="mt-libre" value="sin-limite"><label for="mt-libre">Sin control</label>
+        </div>
+      </div>
+      <label class="field" id="movCantWrap"><span id="movCantLabel">Unidades que entran</span>
+        <input type="text" name="cantidad" inputmode="numeric" placeholder="Ej: 10">
+      </label>
+      <label class="field">Nota <span class="hintline">(opcional: proveedor, venta en local, daño…)</span>
+        <input type="text" name="nota" maxlength="120">
+      </label>
+      <p class="muted" id="movResultado" style="font-weight:700"></p>
+      <p class="auth__error" id="movError" role="alert"></p>
+      <button class="btn btn--primary btn--block" type="submit" id="movSave">Registrar movimiento</button>
     </form>
   </dialog>
 

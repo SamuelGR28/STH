@@ -465,6 +465,18 @@
     ].join("\n");
 
     window.open(waLink(msg), "_blank", "noopener");
+
+    // Descuenta las unidades pedidas (informativo) y vacía el carrito para no contarlas dos veces.
+    const pedido = cart.map((l) => ({ id: l.id, qty: l.qty }));
+    cart = [];
+    saveCart();
+    $("#custNotes").value = "";
+    renderCart();
+    closeCart();
+    toast("Pedido enviado. Termina de confirmarlo en WhatsApp.");
+    window.STH_AUTH?.descontarStock?.(pedido).catch((ex) => {
+      console.warn("[SJTS] No se pudo descontar el stock:", ex?.code || ex);
+    });
   });
 
   const cartEl = $("#cart");
