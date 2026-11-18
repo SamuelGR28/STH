@@ -1,15 +1,17 @@
 /* =========================================================
    SJTS – Lógica de la tienda
    Normalmente no necesitas editar este archivo:
-   los productos están en js/productos.js y los datos de
-   contacto en js/config.js.
+   los productos se administran en admin.html y los datos
+   de contacto están en js/config.js.
    ========================================================= */
 (() => {
   "use strict";
 
   const CFG = window.STH_CONFIG || {};
   const SECTORES = window.STH_SECTORES || [];
-  const PRODUCTOS = window.STH_PRODUCTOS || [];
+  // Los productos llegan desde Firebase (js/auth.js). Mientras tanto la lista está vacía.
+  let PRODUCTOS = [];
+  let productosListos = false;
   const CART_KEY = "sth-carrito-v1";
 
   const $ = (sel, el = document) => el.querySelector(sel);
@@ -25,7 +27,18 @@
   }[c]));
 
   const sectorById = Object.fromEntries(SECTORES.map((s) => [s.id, s]));
-  const productById = Object.fromEntries(PRODUCTOS.map((p) => [p.id, p]));
+  let productById = {};
+
+  function setProductos(lista) {
+    PRODUCTOS = Array.isArray(lista) ? lista : [];
+    productById = Object.fromEntries(PRODUCTOS.map((p) => [p.id, p]));
+    productosListos = true;
+    // Quita del carrito los productos que ya no existen.
+    const antes = cart.length;
+    cart = cart.filter((l) => productById[l.id]);
+    if (cart.length !== antes) saveCart();
+    renderSectors();
+  }
 
   /* ---------- Ilustraciones por sector (se usan si no hay foto) ---------- */
   const ICONS = {
@@ -73,7 +86,7 @@
   function loadCart() {
     try {
       const data = JSON.parse(localStorage.getItem(CART_KEY) || "[]");
-      return Array.isArray(data) ? data.filter((l) => productById[l.id]) : [];
+      return Array.isArray(data) ? data.filter((l) => l && typeof l.id === "string" && l.qty > 0) : [];
     } catch { return []; }
   }
   function saveCart() {
@@ -175,6 +188,9 @@
 
     $("#productsGrid").innerHTML = list.map(cardHTML).join("");
     $("#emptyMsg").hidden = list.length > 0;
+    $("#emptyMsg").textContent = !productosListos
+      ? "Cargando productos…"
+      : (PRODUCTOS.length ? "No encontramos productos con esa búsqueda." : "Pronto agregaremos productos.");
     const sec = sectorById[state.sector];
     $("#catalogInfo").textContent = `${list.length} producto${list.length === 1 ? "" : "s"}${sec ? " en " + sec.nombre : ""}`;
   }
@@ -495,16 +511,23 @@
     renderCart();
   }
 
-  window.addEventListener("sth:auth", (e) => {
-    sesion = { ...sesion, ...e.detail };
-    if (sesion.error && conSesion()) toast(sesion.error);
+  function aplicarEstado(detalle) {
+    sesion = { ...sesion, ...detalle };
+    if (Array.isArray(detalle.productos)) setProductos(detalle.productos);
     renderSesion();
+  }
+
+  window.addEventListener("sth:auth", (e) => {
+    aplicarEstado(e.detail);
+    if (sesion.error && conSesion()) toast(sesion.error);
   });
 
   // Si js/auth.js no carga (sin internet o bloqueado), no dejamos la página en "Cargando…".
   setTimeout(() => {
-    if (sesion.listo) return;
-    sesion = { ...sesion, listo: true, configurado: false, error: "No se pudo conectar con el servicio de cuentas." };
+    if (!productosListos) setProductos(window.STH_PRODUCTOS || []);
+    if (!sesion.listo) {
+      sesion = { ...sesion, listo: true, configurado: false, error: "No se pudo conectar con el servicio de cuentas." };
+    }
     renderSesion();
   }, 10000);
 
@@ -539,8 +562,5 @@
   setSector(initial || "todos", false);
   renderCart();
   // Si auth.js terminó antes que este archivo, tomamos su estado.
-  if (window.STH_AUTH?.estado?.listo) {
-    sesion = { ...sesion, ...window.STH_AUTH.estado };
-    renderSesion();
-  }
+  if (window.STH_AUTH?.estado) aplicarEstado(window.STH_AUTH.estado);
 })();

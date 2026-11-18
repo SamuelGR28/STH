@@ -46,25 +46,20 @@ En ese mismo archivo están Instagram, Facebook, correo, ciudad y horario.
 1. Guarda el logo en `img/`, por ejemplo `img/logo.png`.
 2. En `js/config.js`, cambia `logo: ""` por `logo: "img/logo.png"`.
 
-### Agregar o cambiar un producto
+### Agregar, editar o quitar productos
 
-1. Guarda la foto en `img/productos/`, por ejemplo `img/productos/vela-coco.jpg`. Usa fotos cuadradas o 4:3 de menos de 300 KB.
-2. Abre `js/productos.js`, copia un producto existente y cambia sus datos:
+Se hace desde la página de administración, sin tocar código:
 
-```js
-{ id: "vela-coco", categoria: "velas", nombre: "Vela de coco",
-  descripcion: "Cera de soya, 200 g.",
-  imagen: "img/productos/vela-coco.jpg",
-  personalizable: false, destacado: false },
-```
+1. Abre `admin.html` (o **Mi cuenta > Administrar tienda**) e ingresa con un correo de administrador.
+2. En la pestaña **Productos**:
+   - **+ Agregar producto**: nombre, sector, precio, descripción, foto, tallas, colores y opciones.
+   - **Editar**: cambia cualquier dato o la foto.
+   - **Eliminar**: pulsa dos veces para confirmar.
+3. Los cambios se ven en la tienda al recargarla.
 
-- `id`: único, sin espacios ni tildes.
-- `categoria`: uno de `velas`, `cuadernos`, `papeleria`, `vasos`, `camisas`, `ropa`.
-- El precio no va aquí: se pone en `admin.html` (ver más abajo).
-- `tallas` y `colores`: opcionales, por ejemplo `tallas: ["S", "M", "L"]`.
-- `destacado: true`: lo muestra en "Lo más pedido" (máximo 4).
+La foto se reduce sola a 800 px y se guarda en Firebase. No hace falta subirla a GitHub.
 
-Para quitar un producto, borra su bloque `{ ... },`.
+`js/productos.js` solo tiene los productos de ejemplo. La tienda los muestra hasta que hagas el primer cambio en **Productos**. En ese momento se copian a Firebase, y desde entonces se ignora el archivo.
 
 ### Agregar un sector nuevo
 
@@ -116,7 +111,7 @@ Los datos de `firebaseConfig` (como `apiKey`) son públicos por diseño. La segu
 1. En la tienda, pulsa **Ingresar > Crear cuenta** y regístrate con el correo de administrador.
 2. Abre el correo de verificación que te llega y confirma tu cuenta. Revisa también spam.
 3. Cierra sesión y vuelve a ingresar, para que Firebase reconozca la verificación.
-4. Abre `https://samuelgr28.github.io/STH/admin.html` (o **Mi cuenta > Administrar precios**).
+4. Abre `https://samuelgr28.github.io/STH/admin.html` (o **Mi cuenta > Administrar tienda**).
 5. Escribe los precios y pulsa **Guardar precios**. Los clientes los ven al instante.
 
 Un producto sin precio muestra "Consultar".

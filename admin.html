@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex">
-  <title>SJTS | Administrar precios</title>
+  <title>SJTS | Administración</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
@@ -14,18 +14,49 @@
     .admin { padding: 40px 0 80px; }
     .admin__card { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); padding: 28px; }
     .admin__login { max-width: 420px; margin: 40px auto; }
-    .admin__bar { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 24px; }
+    .admin__bar { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
     .admin__bar h1 { font-size: 2rem; margin: 0; }
+    .tabs { display: flex; gap: 8px; margin-bottom: 24px; border-bottom: 1px solid var(--line); }
+    .tab { padding: 12px 18px; border: 0; background: none; cursor: pointer; font-weight: 700; color: var(--muted); border-bottom: 3px solid transparent; margin-bottom: -1px; }
+    .tab[aria-selected="true"] { color: var(--ink); border-color: var(--accent); }
     .admin__group { margin-bottom: 28px; }
-    .admin__group h2 { font-size: 1.3rem; padding-bottom: 8px; border-bottom: 1px solid var(--line); }
+    .admin__group h2 { font-size: 1.3rem; padding-bottom: 8px; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; align-items: baseline; }
+    .admin__group h2 small { font-family: var(--font-body); font-size: .85rem; color: var(--muted); font-weight: 500; }
     .admin__row { display: grid; grid-template-columns: 1fr 180px; gap: 12px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--line); }
     .admin__row small { display: block; color: var(--muted); }
     .admin__price { display: flex; align-items: center; gap: 6px; border: 1.5px solid var(--line); border-radius: 10px; padding: 0 10px; background: var(--surface); }
     .admin__price:focus-within { border-color: var(--ink); }
     .admin__price input { border: 0; outline: 0; width: 100%; padding: 10px 0; background: transparent; text-align: right; }
     .admin__save { position: sticky; bottom: 16px; display: flex; justify-content: flex-end; gap: 12px; align-items: center; margin-top: 16px; }
-    .admin__save .status { color: var(--muted); font-size: .9rem; }
-    @media (max-width: 520px) { .admin__row { grid-template-columns: 1fr 130px; } }
+    .admin__save .status, .status { color: var(--muted); font-size: .9rem; }
+    .prod { display: grid; grid-template-columns: 56px 1fr auto; gap: 14px; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--line); }
+    .prod__thumb { width: 56px; height: 56px; border-radius: 10px; background: var(--sc, var(--tint)); display: grid; place-items: center; overflow: hidden; }
+    .prod__thumb img { width: 100%; height: 100%; object-fit: cover; }
+    .prod__thumb svg { width: 60%; height: 60%; }
+    .prod__name { font-weight: 700; margin: 0; }
+    .prod__meta { color: var(--muted); font-size: .85rem; margin: 0; }
+    .prod__actions { display: flex; gap: 6px; }
+    .btn--sm { padding: 7px 14px; font-size: .88rem; }
+    .btn--danger { border-color: #b42318; color: #b42318; }
+    .btn--danger:hover, .btn--danger.confirm { background: #b42318; color: #fff; }
+    .pform { padding: 32px 28px 24px; position: relative; }
+    .pform h3 { font-size: 1.6rem; margin-bottom: 12px; }
+    .pform select, .pform textarea { width: 100%; padding: 10px 12px; border: 1.5px solid var(--line); border-radius: 10px; background: var(--surface); font-weight: 400; }
+    .pform .two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .pform .check { display: flex; gap: 8px; align-items: center; font-weight: 500; margin: 4px 0; }
+    .photo { display: grid; grid-template-columns: 96px 1fr; gap: 14px; align-items: center; margin-bottom: 12px; }
+    .photo__preview { width: 96px; height: 96px; border-radius: 12px; background: var(--tint); display: grid; place-items: center; overflow: hidden; border: 1.5px dashed var(--line); }
+    .photo__preview img { width: 100%; height: 100%; object-fit: cover; }
+    .photo__preview svg { width: 55%; height: 55%; }
+    .photo__btns { display: flex; gap: 8px; flex-wrap: wrap; }
+    .hintline { color: var(--muted); font-size: .8rem; font-weight: 400; }
+    .modal--form { width: min(560px, 100% - 32px); }
+    @media (max-width: 520px) {
+      .admin__row { grid-template-columns: 1fr 130px; }
+      .prod { grid-template-columns: 48px 1fr; }
+      .prod__actions { grid-column: 1 / -1; justify-content: flex-end; }
+      .pform .two { grid-template-columns: 1fr; }
+    }
   </style>
 </head>
 <body>
@@ -64,30 +95,95 @@
       <button class="btn btn--ghost btn--block" id="noAccessLogout">Cerrar sesión</button>
     </div>
 
-    <!-- Editor de precios -->
-    <form id="priceEditor" hidden>
+    <!-- Panel del administrador -->
+    <section id="panel" hidden>
       <div class="admin__bar">
         <div>
           <p class="eyebrow">Administración</p>
-          <h1>Precios</h1>
+          <h1>Mi tienda</h1>
         </div>
-        <button type="button" class="btn btn--ghost" id="adminLogout" style="padding:8px 16px">Cerrar sesión</button>
+        <button type="button" class="btn btn--ghost btn--sm" id="adminLogout">Cerrar sesión</button>
       </div>
-      <p class="muted">Escribe el precio en pesos, sin puntos ni signo $. Deja vacío un producto para mostrar "Consultar".
-        Para agregar productos nuevos, edita <code>js/productos.js</code>.</p>
-      <div class="price-notice" id="pendingNote" hidden>
-        <div>
-          <strong><span id="pendingCount"></span> productos tienen un precio sugerido que aún no se ha guardado.</strong>
-          <span>Los clientes todavía no los ven. Revisa los valores y pulsa "Guardar precios".</span>
+
+      <div class="tabs" role="tablist">
+        <button class="tab" role="tab" data-tab="productos" aria-selected="true">Productos</button>
+        <button class="tab" role="tab" data-tab="precios" aria-selected="false">Precios</button>
+      </div>
+
+      <!-- Productos -->
+      <div data-view="productos">
+        <div class="admin__bar" style="margin-bottom:12px">
+          <p class="muted" style="margin:0" id="prodCount"></p>
+          <button type="button" class="btn btn--primary" id="addProduct">+ Agregar producto</button>
         </div>
+        <div class="admin__card" id="prodList"></div>
       </div>
-      <div class="admin__card" id="groups"></div>
-      <div class="admin__save">
-        <span class="status" id="saveStatus"></span>
-        <button class="btn btn--primary" type="submit" id="saveBtn">Guardar precios</button>
-      </div>
-    </form>
+
+      <!-- Precios -->
+      <form id="priceEditor" data-view="precios" hidden>
+        <p class="muted">Escribe el precio en pesos, sin puntos ni signo $. Deja vacío un producto para mostrar "Consultar".</p>
+        <div class="price-notice" id="pendingNote" hidden>
+          <div>
+            <strong><span id="pendingCount"></span> productos tienen un precio sugerido que aún no se ha guardado.</strong>
+            <span>Los clientes todavía no los ven. Revisa los valores y pulsa "Guardar precios".</span>
+          </div>
+        </div>
+        <div class="admin__card" id="groups"></div>
+        <div class="admin__save">
+          <span class="status" id="saveStatus"></span>
+          <button class="btn btn--primary" type="submit" id="saveBtn">Guardar precios</button>
+        </div>
+      </form>
+    </section>
   </main>
+
+  <!-- Formulario de producto -->
+  <dialog class="modal modal--form" id="prodModal" aria-labelledby="pformTitle">
+    <form class="pform" id="prodForm" novalidate>
+      <button type="button" class="icon-btn modal__close" id="prodClose" aria-label="Cerrar">✕</button>
+      <h3 id="pformTitle">Agregar producto</h3>
+
+      <div class="photo">
+        <div class="photo__preview" id="photoPreview"></div>
+        <div>
+          <div class="photo__btns">
+            <label class="btn btn--ghost btn--sm" style="cursor:pointer">
+              Elegir foto
+              <input type="file" id="photoInput" accept="image/*" hidden>
+            </label>
+            <button type="button" class="btn btn--ghost btn--sm" id="photoRemove">Quitar foto</button>
+          </div>
+          <p class="hintline" style="margin:6px 0 0">JPG o PNG. Se ajusta sola a un tamaño liviano para la web.</p>
+        </div>
+      </div>
+
+      <label class="field">Nombre del producto
+        <input type="text" name="nombre" maxlength="80" required>
+      </label>
+      <div class="two">
+        <label class="field">Sector
+          <select name="categoria" id="pfSector" required></select>
+        </label>
+        <label class="field">Precio (pesos)
+          <input type="text" name="precio" inputmode="numeric" placeholder="Ej: 25000 (vacío = Consultar)">
+        </label>
+      </div>
+      <label class="field">Descripción
+        <textarea name="descripcion" rows="3" maxlength="400"></textarea>
+      </label>
+      <label class="field">Tallas <span class="hintline">(opcional, separadas por coma: S, M, L, XL)</span>
+        <input type="text" name="tallas" maxlength="120">
+      </label>
+      <label class="field">Colores / estilos <span class="hintline">(opcional, separados por coma)</span>
+        <input type="text" name="colores" maxlength="200">
+      </label>
+      <label class="check"><input type="checkbox" name="personalizable"> El cliente puede escribir un nombre o frase</label>
+      <label class="check"><input type="checkbox" name="destacado"> Mostrar en "Lo más pedido"</label>
+
+      <p class="auth__error" id="pformError" role="alert"></p>
+      <button class="btn btn--primary btn--block" type="submit" id="pformSave">Guardar producto</button>
+    </form>
+  </dialog>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 

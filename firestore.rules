@@ -24,6 +24,16 @@ service cloud.firestore {
       allow write: if esAdmin();
     }
 
+    // Productos y ajustes del catálogo: los ve cualquiera; solo el administrador los cambia.
+    match /productos/{id} {
+      allow read: if true;
+      allow write: if esAdmin();
+    }
+    match /ajustes/{doc} {
+      allow read: if true;
+      allow write: if esAdmin();
+    }
+
     // Perfil de cada cliente: cada uno ve y edita solo el suyo.
     match /usuarios/{uid} {
       allow read, write: if conSesion() && request.auth.uid == uid;
