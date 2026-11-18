@@ -18,7 +18,7 @@ window.STH_CONFIG = {
 
   // Ruta al logo. Mientras esté vacío se muestra el texto "SJTS".
   // Ejemplo: "img/logo.png"
-  logo: "",
+  logo: "img/logo.png",
 
   moneda: "COP",
   envio: "Hacemos envíos a todo el país. El costo se confirma por WhatsApp.",

@@ -62,7 +62,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .topbar { position: sticky; top: 0; z-index: 30; background: rgba(251, 246, 239, .92); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
 .topbar__inner { display: flex; align-items: center; justify-content: space-between; height: 68px; gap: 16px; }
 .brand { font-family: var(--font-title); font-weight: 700; font-size: 1.7rem; letter-spacing: .04em; text-decoration: none; display: flex; align-items: center; }
-.brand img { height: 46px; width: auto; }
+.brand img { height: 58px; width: auto; }
 .nav { display: flex; gap: 28px; }
 .nav a { text-decoration: none; font-weight: 500; color: var(--muted); }
 .nav a:hover { color: var(--ink); }
