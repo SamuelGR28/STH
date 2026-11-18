@@ -11,13 +11,15 @@
    - "destacado": true para que aparezca en "Lo más pedido".
    ========================================================= */
 
+// Sectores de ejemplo. Se usan hasta que el administrador cambie los
+// sectores en admin.html > Sectores; desde ahí se guardan en Firebase.
 window.STH_SECTORES = [
-  { id: "velas",     nombre: "Velas",                 descripcion: "Aromáticas, decorativas y para regalo." },
-  { id: "cuadernos", nombre: "Cuadernos",             descripcion: "Libretas y agendas con portada a tu gusto." },
-  { id: "papeleria", nombre: "Papelería",             descripcion: "Stickers, tarjetas, marcadores y más." },
-  { id: "vasos",     nombre: "Vasos personalizados",  descripcion: "Vasos, mugs y termos con tu diseño." },
-  { id: "camisas",   nombre: "Camisas",               descripcion: "Camisetas estampadas con tu idea." },
-  { id: "ropa",      nombre: "Ropa",                  descripcion: "Buzos, gorras y prendas personalizadas." }
+  { id: "velas",     nombre: "Velas",                 descripcion: "Aromáticas, decorativas y para regalo.",   icono: "velas",     color: "#f2c6b4" },
+  { id: "cuadernos", nombre: "Cuadernos",             descripcion: "Libretas y agendas con portada a tu gusto.", icono: "cuadernos", color: "#c9d8c5" },
+  { id: "papeleria", nombre: "Papelería",             descripcion: "Stickers, tarjetas, marcadores y más.",     icono: "papeleria", color: "#f3dc9f" },
+  { id: "vasos",     nombre: "Vasos personalizados",  descripcion: "Vasos, mugs y termos con tu diseño.",       icono: "vasos",     color: "#c4d4ea" },
+  { id: "camisas",   nombre: "Camisas",               descripcion: "Camisetas estampadas con tu idea.",         icono: "camisas",   color: "#e6c9de" },
+  { id: "ropa",      nombre: "Ropa",                  descripcion: "Buzos, gorras y prendas personalizadas.",   icono: "ropa",      color: "#d8cdbd" }
 ];
 
 window.STH_PRODUCTOS = [

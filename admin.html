@@ -53,11 +53,28 @@
     .ph__mk { position: absolute; left: 4px; bottom: 4px; padding: 2px 6px; border-radius: 6px; border: 0; background: rgba(255,255,255,.9); font-size: .65rem; font-weight: 700; cursor: pointer; }
     .photo__btns { display: flex; gap: 8px; flex-wrap: wrap; }
     .hintline { color: var(--muted); font-size: .8rem; font-weight: 400; }
+    .sec { display: grid; grid-template-columns: 56px 1fr auto; gap: 14px; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--line); }
+    .sec:last-child { border-bottom: 0; }
+    .sec__sw { width: 56px; height: 56px; border-radius: 12px; display: grid; place-items: center; background: var(--sc); }
+    .sec__sw svg { width: 60%; height: 60%; }
+    .sec__move { display: flex; flex-direction: column; gap: 2px; }
+    .sec__move button { width: 30px; height: 24px; border: 1.5px solid var(--line); border-radius: 6px; background: var(--surface); cursor: pointer; line-height: 1; }
+    .sec__move button:disabled { opacity: .35; cursor: default; }
+    .sec-preview { height: 110px; border-radius: 14px; margin-bottom: 14px; position: relative; overflow: hidden; background: var(--sc); padding: 16px 18px; }
+    .sec-preview strong { font-family: var(--font-title); font-size: 1.3rem; display: block; }
+    .sec-preview span { color: rgba(43,34,32,.75); font-size: .9rem; }
+    .sec-preview svg { position: absolute; right: -6px; bottom: -10px; width: 100px; height: 100px; opacity: .55; }
+    .icon-pick { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
+    .icon-pick button { aspect-ratio: 1; border: 1.5px solid var(--line); border-radius: 8px; background: var(--surface); cursor: pointer; padding: 4px; }
+    .icon-pick button[aria-pressed="true"] { border-color: var(--ink); background: var(--tint); box-shadow: 0 0 0 2px var(--ink) inset; }
+    .icon-pick svg { width: 100%; height: 100%; }
     .modal--form { width: min(560px, 100% - 32px); }
     @media (max-width: 520px) {
       .admin__row { grid-template-columns: 1fr 130px; }
       .prod { grid-template-columns: 48px 1fr; }
       .prod__actions { grid-column: 1 / -1; justify-content: flex-end; }
+      .sec { grid-template-columns: 48px 1fr; }
+      .sec .prod__actions { grid-column: 1 / -1; justify-content: flex-end; }
       .pform .two { grid-template-columns: 1fr; }
     }
   </style>
@@ -111,6 +128,7 @@
       <div class="tabs" role="tablist">
         <button class="tab" role="tab" data-tab="productos" aria-selected="true">Productos</button>
         <button class="tab" role="tab" data-tab="precios" aria-selected="false">Precios</button>
+        <button class="tab" role="tab" data-tab="sectores" aria-selected="false">Sectores</button>
       </div>
 
       <!-- Productos -->
@@ -120,6 +138,15 @@
           <button type="button" class="btn btn--primary" id="addProduct">+ Agregar producto</button>
         </div>
         <div class="admin__card" id="prodList"></div>
+      </div>
+
+      <!-- Sectores -->
+      <div data-view="sectores" hidden>
+        <div class="admin__bar" style="margin-bottom:12px">
+          <p class="muted" style="margin:0">Los sectores agrupan los productos en la tienda. Usa ↑ ↓ para cambiar el orden.</p>
+          <button type="button" class="btn btn--primary" id="addSector">+ Agregar sector</button>
+        </div>
+        <div class="admin__card" id="secList"></div>
       </div>
 
       <!-- Precios -->
@@ -185,10 +212,36 @@
     </form>
   </dialog>
 
+  <!-- Formulario de sector -->
+  <dialog class="modal modal--form" id="secModal" aria-labelledby="sformTitle">
+    <form class="pform" id="secForm" novalidate>
+      <button type="button" class="icon-btn modal__close" id="secClose" aria-label="Cerrar">✕</button>
+      <h3 id="sformTitle">Agregar sector</h3>
+      <div class="sec-preview" id="secPreview"></div>
+      <label class="field">Nombre del sector
+        <input type="text" name="nombre" maxlength="40" required>
+      </label>
+      <label class="field">Descripción corta
+        <input type="text" name="descripcion" maxlength="90" placeholder="Ej: Cajas, detalles y sorpresas.">
+      </label>
+      <div class="two">
+        <label class="field">Color de fondo
+          <input type="color" name="color" value="#f4ebe0" style="height:44px;padding:4px">
+        </label>
+        <div class="field">Ilustración
+          <div class="icon-pick" id="iconPick"></div>
+        </div>
+      </div>
+      <p class="auth__error" id="sformError" role="alert"></p>
+      <button class="btn btn--primary btn--block" type="submit" id="sformSave">Guardar sector</button>
+    </form>
+  </dialog>
+
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
   <script src="js/config.js"></script>
   <script src="js/productos.js"></script>
+  <script src="js/iconos.js"></script>
   <script type="module" src="js/auth.js"></script>
   <script type="module" src="js/admin.js"></script>
 </body>

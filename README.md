@@ -61,10 +61,16 @@ La foto se reduce sola a 800 px y se guarda en Firebase. No hace falta subirla a
 
 `js/productos.js` solo tiene los productos de ejemplo. La tienda los muestra hasta que hagas el primer cambio en **Productos**. En ese momento se copian a Firebase, y desde entonces se ignora el archivo.
 
-### Agregar un sector nuevo
+### Agregar, editar, ordenar o quitar sectores
 
-1. En `js/productos.js`, agrega una línea en `STH_SECTORES`, por ejemplo `{ id: "regalos", nombre: "Regalos", descripcion: "Cajas y detalles." }`.
-2. En `css/styles.css`, agrega su color en `:root`: `--c-regalos: #f5d5c8;`.
+En `admin.html`, pestaña **Sectores**:
+
+- **+ Agregar sector**: nombre, descripción corta, color de fondo e ilustración.
+- **Editar**: cambia cualquiera de esos datos.
+- **↑ ↓**: cambia el orden en que aparecen en la tienda.
+- **Eliminar**: pulsa dos veces para confirmar. Solo se puede eliminar un sector sin productos. Primero mueve sus productos a otro sector (Productos > Editar) o elimínalos.
+
+Los sectores de `js/productos.js` son solo de ejemplo. Se usan hasta el primer cambio en **Sectores**. Las ilustraciones disponibles están en `js/iconos.js`.
 
 ### Cambiar los colores de la marca
 

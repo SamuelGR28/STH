@@ -24,6 +24,7 @@ const CFG = window.STH_CONFIG || {};
 const FB = CFG.firebase || {};
 const configurado = Boolean(FB.apiKey && FB.projectId && FB.appId);
 const EJEMPLO = (window.STH_PRODUCTOS || []).map((p, i) => ({ orden: i, ...p }));
+const SECTORES_EJEMPLO = window.STH_SECTORES || [];
 
 const estado = {
   listo: false,              // ya se sabe si hay sesión
@@ -31,6 +32,7 @@ const estado = {
   usuario: null,
   precios: {},
   productos: null,           // null = cargando; luego, lista de productos
+  sectores: null,            // null = cargando; luego, lista de sectores
   catalogoGestionado: false, // true = los productos vienen de Firebase
   error: ""
 };
@@ -64,6 +66,14 @@ const ordenar = (lista) => lista.slice().sort((a, b) =>
   (a.orden ?? 1e9) - (b.orden ?? 1e9) || String(a.nombre).localeCompare(String(b.nombre), "es"));
 
 async function cargarProductos() {
+  try {
+    const sect = await getDoc(doc(db, "ajustes", "sectores"));
+    const lista = sect.exists() ? sect.data().lista : null;
+    estado.sectores = Array.isArray(lista) ? lista : SECTORES_EJEMPLO;
+  } catch (e) {
+    console.warn("[SJTS] Sectores desde js/productos.js:", e?.code || e);
+    estado.sectores = SECTORES_EJEMPLO;
+  }
   try {
     const ajustes = await getDoc(doc(db, "ajustes", "catalogo"));
     if (ajustes.exists() && ajustes.data().gestionado) {
@@ -118,6 +128,15 @@ window.STH_AUTH = {
   },
 
   async salir() { await signOut(auth); },
+
+  // Guarda la lista completa de sectores (en el orden en que se muestran).
+  async guardarSectores(lista) {
+    const limpia = lista.map(({ id, nombre, descripcion, icono, color }) =>
+      ({ id, nombre, descripcion: descripcion || "", icono: icono || "estrella", color: color || "#f4ebe0" }));
+    await setDoc(doc(db, "ajustes", "sectores"), { lista: limpia });
+    estado.sectores = limpia;
+    avisar();
+  },
 
   async recuperar(correo) { await sendPasswordResetEmail(auth, correo.trim()); },
 
@@ -178,6 +197,7 @@ window.STH_AUTH = {
 if (!configurado) {
   estado.listo = true;
   estado.productos = EJEMPLO;
+  estado.sectores = SECTORES_EJEMPLO;
   estado.error = "Firebase no está configurado (js/config.js).";
   console.warn("[SJTS] " + estado.error);
   avisar();

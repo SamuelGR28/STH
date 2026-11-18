@@ -2,11 +2,12 @@
    SJTS – Página de administración (admin.html)
    - Productos: agregar, editar y eliminar (con foto).
    - Precios: editar todos los precios a la vez.
+   - Sectores: agregar, editar, ordenar y eliminar.
    La seguridad real está en firestore.rules: aunque alguien
    abra esta página, solo los administradores pueden guardar.
    ========================================================= */
 const CFG = window.STH_CONFIG || {};
-const SECTORES = window.STH_SECTORES || [];
+let SECTORES = [];   // llegan desde Firebase (js/auth.js)
 const ADMINS = (CFG.administradores || []).map((c) => c.toLowerCase());
 
 // Precios de ejemplo para llenar el formulario de precios la primera vez.
@@ -20,16 +21,9 @@ const SUGERIDOS = {
   "buzo-capota": 75000, "gorra": 32000, "tote-bag": 26000
 };
 
-const ICONS = {
-  velas: '<path d="M24 30h16v26H24z"/><path d="M32 30v-6"/><path d="M32 10c4 5 5 8 0 12-5-4-4-7 0-12z"/><path d="M20 56h24"/>',
-  cuadernos: '<rect x="16" y="8" width="34" height="48" rx="3"/><path d="M16 16h-4M16 26h-4M16 36h-4M16 46h-4"/><path d="M26 20h16M26 28h16M26 36h10"/>',
-  papeleria: '<path d="M14 50 44 20l6 6-30 30h-6z"/><path d="m40 24 6 6"/><path d="M14 50l-2 8 8-2"/><circle cx="48" cy="48" r="6"/>',
-  vasos: '<path d="M14 18h30l-4 38H18z"/><path d="M44 26h4a6 6 0 0 1 0 12h-6"/><path d="M24 6c-2 3 2 5 0 8M32 6c-2 3 2 5 0 8"/>',
-  camisas: '<path d="M22 8 8 16l6 12 6-3v31h24V25l6 3 6-12-14-8c-2 5-6 7-10 7s-8-2-10-7z"/>',
-  ropa: '<path d="M32 14a5 5 0 1 1 5 5c-3 0-5 2-5 4v2"/><path d="M32 25 6 46h52z"/><path d="M6 46v4h52v-4"/>'
-};
-const icon = (cat) =>
-  `<svg viewBox="0 0 64 64" fill="none" stroke="#2b2220" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[cat] || ICONS.papeleria}</svg>`;
+const UI = window.STH_UI;
+const sectorDe = (id) => SECTORES.find((s) => s.id === id);
+const icon = (cat) => UI.svg(sectorDe(cat)?.icono || cat);
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -73,7 +67,7 @@ function renderProductos() {
         const precio = v > 0 ? money.format(v) : "Sin precio";
         const extras = [p.personalizable && "Personalizable", p.destacado && "Destacado"].filter(Boolean).join(" · ");
         return `<div class="prod">
-            <div class="prod__thumb" style="--sc: var(--c-${esc(p.categoria)}, var(--tint))">${p.imagen ? `<img src="${esc(p.imagen)}" alt="">` : icon(p.categoria)}</div>
+            <div class="prod__thumb" style="${UI.estilo(sectorDe(p.categoria), p.categoria)}">${p.imagen ? `<img src="${esc(p.imagen)}" alt="">` : icon(p.categoria)}</div>
             <div><p class="prod__name">${esc(p.nombre)}</p><p class="prod__meta">${precio}${extras ? " · " + extras : ""}</p></div>
             <div class="prod__actions">
               <button type="button" class="btn btn--ghost btn--sm" data-edit="${esc(p.id)}">Editar</button>
@@ -127,7 +121,6 @@ const MAX_FOTOS = 5;
 let fotos = [];        // fotos del producto (dataURL o ruta); la primera es la portada
 let cargandoFotos = false;
 
-$("#pfSector").innerHTML = SECTORES.map((s) => `<option value="${esc(s.id)}">${esc(s.nombre)}</option>`).join("");
 
 function pintarFotos() {
   const celdas = fotos.map((f, i) => `<div class="ph">
@@ -154,6 +147,8 @@ function abrirForm(id) {
   const p = id ? productos().find((x) => x.id === id) : null;
   editando = p ? p.id : null;
   form.reset();
+  $("#pfSector").innerHTML = SECTORES.map((s) => `<option value="${esc(s.id)}">${esc(s.nombre)}</option>`).join("")
+    + (p && !sectorDe(p.categoria) ? '<option value="">— Elige un sector —</option>' : "");
   $("#pformError").textContent = "";
   $("#pformTitle").textContent = p ? "Editar producto" : "Agregar producto";
   form.nombre.value = p?.nombre || "";
@@ -287,6 +282,141 @@ form.addEventListener("submit", async (e) => {
   }
 });
 
+/* ---------- Sectores ---------- */
+function renderSectores() {
+  const lista = productos();
+  $("#secList").innerHTML = SECTORES.length ? SECTORES.map((s, i) => {
+    const n = lista.filter((p) => p.categoria === s.id).length;
+    return `<div class="sec">
+        <div class="sec__sw" style="${UI.estilo(s, s.id)}">${UI.svg(s.icono || s.id)}</div>
+        <div><p class="prod__name">${esc(s.nombre)}</p><p class="prod__meta">${n} producto${n === 1 ? "" : "s"}${s.descripcion ? " · " + esc(s.descripcion) : ""}</p></div>
+        <div class="prod__actions">
+          <div class="sec__move">
+            <button type="button" data-up="${i}" aria-label="Subir" ${i === 0 ? "disabled" : ""}>↑</button>
+            <button type="button" data-down="${i}" aria-label="Bajar" ${i === SECTORES.length - 1 ? "disabled" : ""}>↓</button>
+          </div>
+          <button type="button" class="btn btn--ghost btn--sm" data-sedit="${esc(s.id)}">Editar</button>
+          <button type="button" class="btn btn--ghost btn--sm btn--danger" data-sdel="${esc(s.id)}">Eliminar</button>
+        </div>
+      </div>`;
+  }).join("") : '<p class="muted" style="margin:0">No hay sectores. Agrega el primero.</p>';
+}
+
+async function guardarSectores(lista, mensajeOk) {
+  try {
+    await AUTH().guardarSectores(lista);
+    if (mensajeOk) toast(mensajeOk);
+    return true;
+  } catch (ex) {
+    toast(AUTH().mensaje(ex));
+    renderSectores();
+    return false;
+  }
+}
+
+$("#secList").addEventListener("click", async (e) => {
+  const up = e.target.closest("[data-up]");
+  const down = e.target.closest("[data-down]");
+  if (up || down) {
+    const i = Number(up ? up.dataset.up : down.dataset.down);
+    const j = up ? i - 1 : i + 1;
+    const lista = SECTORES.slice();
+    [lista[i], lista[j]] = [lista[j], lista[i]];
+    await guardarSectores(lista);
+    return;
+  }
+  const ed = e.target.closest("[data-sedit]");
+  if (ed) { abrirSector(ed.dataset.sedit); return; }
+  const del = e.target.closest("[data-sdel]");
+  if (!del) return;
+  const s = sectorDe(del.dataset.sdel);
+  const n = productos().filter((p) => p.categoria === s.id).length;
+  if (n > 0) {
+    toast(`"${s.nombre}" tiene ${n} producto${n === 1 ? "" : "s"}. Muévelos a otro sector o elimínalos primero.`);
+    return;
+  }
+  // Primer clic pide confirmar, segundo clic elimina.
+  if (!del.classList.contains("confirm")) {
+    $$(".btn--danger.confirm").forEach((b) => { b.classList.remove("confirm"); b.textContent = "Eliminar"; });
+    del.classList.add("confirm");
+    del.textContent = "¿Seguro? Eliminar";
+    setTimeout(() => { if (del.isConnected) { del.classList.remove("confirm"); del.textContent = "Eliminar"; } }, 4000);
+    return;
+  }
+  del.disabled = true;
+  await guardarSectores(SECTORES.filter((x) => x.id !== s.id), `Sector "${s.nombre}" eliminado`);
+});
+
+const secModal = $("#secModal");
+const secForm = $("#secForm");
+let sectorEditando = null;
+let iconoElegido = "estrella";
+
+function pintarSectorPreview() {
+  const s = { nombre: secForm.nombre.value || "Nombre del sector", descripcion: secForm.descripcion.value, color: secForm.color.value, icono: iconoElegido };
+  $("#secPreview").setAttribute("style", UI.estilo(s, ""));
+  $("#secPreview").innerHTML = `<strong>${esc(s.nombre)}</strong><span>${esc(s.descripcion)}</span>${UI.svg(s.icono)}`;
+  $$("#iconPick button").forEach((b) => b.setAttribute("aria-pressed", b.dataset.icono === iconoElegido));
+}
+
+$("#iconPick").innerHTML = Object.entries(UI.ICONOS).map(([k, v]) =>
+  `<button type="button" data-icono="${k}" title="${esc(v.nombre)}" aria-label="${esc(v.nombre)}">${UI.svg(k)}</button>`).join("");
+$("#iconPick").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-icono]");
+  if (!b) return;
+  iconoElegido = b.dataset.icono;
+  pintarSectorPreview();
+});
+["input", "change"].forEach((ev) => secForm.addEventListener(ev, pintarSectorPreview));
+
+function abrirSector(id) {
+  const s = id ? sectorDe(id) : null;
+  sectorEditando = s ? s.id : null;
+  secForm.reset();
+  $("#sformError").textContent = "";
+  $("#sformTitle").textContent = s ? "Editar sector" : "Agregar sector";
+  secForm.nombre.value = s?.nombre || "";
+  secForm.descripcion.value = s?.descripcion || "";
+  secForm.color.value = /^#[0-9a-f]{6}$/i.test(s?.color || "") ? s.color : "#f4ebe0";
+  iconoElegido = s?.icono || (s && UI.ICONOS[s.id] ? s.id : "estrella");
+  pintarSectorPreview();
+  secModal.showModal();
+  secForm.nombre.focus();
+}
+
+$("#addSector").addEventListener("click", () => abrirSector(null));
+$("#secClose").addEventListener("click", () => secModal.close());
+secModal.addEventListener("click", (e) => { if (e.target === secModal) secModal.close(); });
+
+secForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const err = $("#sformError");
+  err.textContent = "";
+  const nombre = secForm.nombre.value.trim();
+  if (!nombre) { err.textContent = "Escribe el nombre del sector."; secForm.nombre.focus(); return; }
+  if (SECTORES.some((s) => s.id !== sectorEditando && s.nombre.toLowerCase() === nombre.toLowerCase())) {
+    err.textContent = "Ya existe un sector con ese nombre.";
+    return;
+  }
+  const datos = { nombre, descripcion: secForm.descripcion.value.trim(), color: secForm.color.value, icono: iconoElegido };
+  let lista;
+  if (sectorEditando) {
+    lista = SECTORES.map((s) => (s.id === sectorEditando ? { ...s, ...datos } : s));
+  } else {
+    const base = slug(nombre);
+    let id = base, n = 2;
+    while (SECTORES.some((s) => s.id === id)) id = `${base}-${n++}`;
+    lista = [...SECTORES, { id, ...datos }];
+  }
+  const btn = $("#sformSave");
+  btn.disabled = true;
+  btn.textContent = "Guardando…";
+  const ok = await guardarSectores(lista, sectorEditando ? "Sector actualizado" : "Sector agregado");
+  btn.disabled = false;
+  btn.textContent = "Guardar sector";
+  if (ok) secModal.close();
+});
+
 /* ---------- Precios ---------- */
 function renderPrecios() {
   const precios = estado.precios || {};
@@ -335,6 +465,7 @@ $("#priceEditor").addEventListener("submit", async (e) => {
 /* ---------- Sesión ---------- */
 function render(nuevo) {
   estado = nuevo;
+  SECTORES = Array.isArray(nuevo.sectores) ? nuevo.sectores : (window.STH_SECTORES || []);
   if (!nuevo.listo || !Array.isArray(nuevo.productos)) return mostrar("#loading");
   if (!nuevo.configurado) {
     $("#loading").textContent = "Firebase no está configurado todavía. Revisa js/config.js (ver README).";
@@ -348,6 +479,7 @@ function render(nuevo) {
     return mostrar("#noAccess");
   }
   renderProductos();
+  renderSectores();
   // No redibujamos los precios mientras se están escribiendo.
   if (!$("#priceEditor").contains(document.activeElement)) renderPrecios();
   mostrar("#panel");
