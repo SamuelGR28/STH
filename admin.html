@@ -96,6 +96,25 @@
     .hist__q.mas { color: #17603a; }
     .hist__q.menos { color: #b42318; }
     .hist small { display: block; color: var(--muted); }
+    .tab__badge { display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 6px; margin-left: 4px; border-radius: 10px; background: var(--accent); color: #fff; font-size: .72rem; }
+    .ped { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); padding: 18px 20px; margin-bottom: 14px; border-left: 5px solid var(--line); }
+    .ped--pendiente { border-left-color: #e0a100; }
+    .ped--comprado { border-left-color: #1f9d55; }
+    .ped--no-comprado { border-left-color: #b42318; opacity: .85; }
+    .ped__head { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; align-items: baseline; }
+    .ped__token { font-family: ui-monospace, Consolas, monospace; font-size: 1.15rem; font-weight: 700; letter-spacing: .04em; }
+    .ped__estado { padding: 3px 10px; border-radius: 999px; font-size: .75rem; font-weight: 700; }
+    .ped__estado--pendiente { background: #fff1d6; color: #8a5a00; }
+    .ped__estado--comprado { background: #e8f5ec; color: #17603a; }
+    .ped__estado--no-comprado { background: #fde2e1; color: #b42318; }
+    .ped__meta { color: var(--muted); font-size: .85rem; margin: 4px 0 10px; }
+    .ped__items { list-style: none; padding: 0; margin: 0 0 10px; border-top: 1px solid var(--line); }
+    .ped__items li { display: flex; justify-content: space-between; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--line); font-size: .92rem; }
+    .ped__items small { display: block; color: var(--muted); }
+    .ped__total { display: flex; justify-content: space-between; font-weight: 700; margin-bottom: 12px; }
+    .ped__acc { display: flex; gap: 8px; flex-wrap: wrap; }
+    .btn--ok { background: #1f9d55; color: #fff; }
+    .btn--ok:hover, .btn--ok.confirm { background: #17824a; }
     .modal--form { width: min(560px, 100% - 32px); }
     @media (max-width: 520px) {
       .admin__row { grid-template-columns: 1fr 130px; }
@@ -159,14 +178,33 @@
       </div>
 
       <div class="tabs" role="tablist">
-        <button class="tab" role="tab" data-tab="productos" aria-selected="true">Productos</button>
+        <button class="tab" role="tab" data-tab="pedidos" aria-selected="true">Pedidos <span class="tab__badge" id="pedBadge" hidden></span></button>
+        <button class="tab" role="tab" data-tab="productos" aria-selected="false">Productos</button>
         <button class="tab" role="tab" data-tab="inventario" aria-selected="false">Inventario</button>
         <button class="tab" role="tab" data-tab="precios" aria-selected="false">Precios</button>
         <button class="tab" role="tab" data-tab="sectores" aria-selected="false">Sectores</button>
       </div>
 
+      <!-- Pedidos -->
+      <div data-view="pedidos">
+        <div class="admin__bar" style="margin-bottom:12px">
+          <div class="chips" id="pedFiltro">
+            <button type="button" class="chip" data-f="pendiente" aria-selected="true">Pendientes</button>
+            <button type="button" class="chip" data-f="comprado" aria-selected="false">Comprados</button>
+            <button type="button" class="chip" data-f="no-comprado" aria-selected="false">No comprados</button>
+            <button type="button" class="chip" data-f="todos" aria-selected="false">Todos</button>
+          </div>
+          <button type="button" class="btn btn--ghost btn--sm" id="pedReload">Actualizar</button>
+        </div>
+        <label class="search" style="margin-bottom:14px">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
+          <input type="search" id="pedBuscar" placeholder="Buscar por token (SJTS-…), nombre, correo o celular" aria-label="Buscar pedido">
+        </label>
+        <div id="pedList"><p class="muted">Cargando pedidos…</p></div>
+      </div>
+
       <!-- Productos -->
-      <div data-view="productos">
+      <div data-view="productos" hidden>
         <div class="admin__bar" style="margin-bottom:12px">
           <p class="muted" style="margin:0" id="prodCount"></p>
           <button type="button" class="btn btn--primary" id="addProduct">+ Agregar producto</button>

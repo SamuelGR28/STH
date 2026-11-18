@@ -449,9 +449,12 @@
       return `${i + 1}. ${p.nombre} x${l.qty} = ${subtotal(p, l.qty)}${meta.length ? "\n   " + meta.join(" | ") : ""}`;
     });
     const u = sesion.usuario;
+    const AUTHX = window.STH_AUTH;
+    if (!AUTHX?.crearPedido) { toast("No hay conexión con la tienda. Intenta de nuevo."); return; }
 
-    const msg = [
+    const mensaje = (token) => [
       `Hola ${CFG.nombre || "SJTS"}, quiero hacer este pedido:`,
+      `Pedido: ${token}`,
       "",
       ...lines,
       "",
@@ -464,19 +467,43 @@
       ...(notes ? [`Notas: ${notes}`] : [])
     ].join("\n");
 
-    window.open(waLink(msg), "_blank", "noopener");
-
-    // Descuenta las unidades pedidas (informativo) y vacía el carrito para no contarlas dos veces.
-    const pedido = cart.map((l) => ({ id: l.id, qty: l.qty }));
-    cart = [];
-    saveCart();
-    $("#custNotes").value = "";
-    renderCart();
-    closeCart();
-    toast("Pedido enviado. Termina de confirmarlo en WhatsApp.");
-    window.STH_AUTH?.descontarStock?.(pedido).catch((ex) => {
-      console.warn("[SJTS] No se pudo descontar el stock:", ex?.code || ex);
+    const items = cart.map((l) => {
+      const p = productById[l.id];
+      return { id: l.id, nombre: p.nombre, qty: l.qty, precio: precio(p) || 0,
+        talla: l.talla || "", color: l.color || "", personalizacion: l.personalizacion || "" };
     });
+
+    // Se abre la ventana ya (si no, el celular la bloquea) y se llena cuando el pedido quede guardado.
+    const ventana = window.open("", "_blank");
+    const btn = $("#sendOrder");
+    btn.disabled = true;
+    btn.textContent = "Registrando pedido…";
+
+    (async () => {
+      let token = null, ultimoError = null;
+      for (let intento = 0; intento < 3 && !token; intento++) {
+        const t = AUTHX.nuevoToken();
+        try { await AUTHX.crearPedido(t, { items, total, ciudad: city, notas: notes }); token = t; }
+        catch (ex) { ultimoError = ex; }
+      }
+      btn.disabled = false;
+      renderCart();
+      if (!token) {
+        try { ventana?.close(); } catch { /* nada */ }
+        console.warn("[SJTS] No se pudo registrar el pedido:", ultimoError?.code || ultimoError);
+        toast("No se pudo registrar el pedido. Revisa tu conexión e intenta de nuevo.", 5000);
+        return;
+      }
+      const url = waLink(mensaje(token));
+      if (ventana && !ventana.closed) ventana.location.href = url;
+      else location.href = url;
+      cart = [];
+      saveCart();
+      $("#custNotes").value = "";
+      renderCart();
+      closeCart();
+      toast(`Pedido ${token} registrado. Termina de confirmarlo en WhatsApp.`, 6000);
+    })();
   });
 
   const cartEl = $("#cart");
@@ -500,12 +527,12 @@
 
   /* ---------- Aviso breve ---------- */
   let toastTimer;
-  function toast(text) {
+  function toast(text, ms = 2200) {
     const t = $("#toast");
     t.textContent = text;
     t.classList.add("show");
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => t.classList.remove("show"), 2200);
+    toastTimer = setTimeout(() => t.classList.remove("show"), ms);
   }
 
   /* ---------- Cuenta: ingresar, registrarse, recuperar ---------- */

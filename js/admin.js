@@ -1,5 +1,6 @@
 /* =========================================================
    SJTS – Página de administración (admin.html)
+   - Pedidos: cada pedido web tiene un token; se marca "compró" (descuenta inventario) o "no compró".
    - Productos: agregar, editar y eliminar (con foto).
    - Precios: editar todos los precios a la vez.
    - Sectores: agregar, editar, ordenar y eliminar.
@@ -48,7 +49,7 @@ let estado = { productos: [], precios: {} };
 const productos = () => estado.productos || [];
 
 /* ---------- Pestañas ---------- */
-let pestana = "productos";
+let pestana = "pedidos";
 function verPestana(nombre) {
   pestana = nombre;
   $$(".tab").forEach((t) => t.setAttribute("aria-selected", t.dataset.tab === nombre));
@@ -57,6 +58,7 @@ function verPestana(nombre) {
 $$(".tab").forEach((t) => t.addEventListener("click", () => {
   verPestana(t.dataset.tab);
   if (t.dataset.tab === "inventario") cargarHistorial();
+  if (t.dataset.tab === "pedidos") cargarPedidos();
 }));
 
 /* ---------- Lista de productos ---------- */
@@ -306,6 +308,119 @@ form.addEventListener("submit", async (e) => {
   }
 });
 
+/* ---------- Pedidos (token) ---------- */
+let pedidos = [];
+let pedidosCargados = false;
+let filtroPed = "pendiente";
+const ESTADOS = { pendiente: "Pendiente", comprado: "Compró", "no-comprado": "No compró" };
+const fechaPed = new Intl.DateTimeFormat("es-CO", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
+
+async function cargarPedidos() {
+  pedidosCargados = true;
+  try {
+    pedidos = await AUTH().cargarPedidos(200);
+    renderPedidos();
+  } catch (ex) {
+    console.error(ex);
+    $("#pedList").innerHTML = `<p class="auth__error">${esc(AUTH().mensaje(ex))}</p>`;
+  }
+}
+
+function renderPedidos() {
+  const pend = pedidos.filter((p) => (p.estado || "pendiente") === "pendiente").length;
+  $("#pedBadge").hidden = pend === 0;
+  $("#pedBadge").textContent = pend;
+
+  const q = $("#pedBuscar").value.trim().toLowerCase();
+  const lista = pedidos.filter((p) => {
+    const est = p.estado || "pendiente";
+    if (!q && filtroPed !== "todos" && est !== filtroPed) return false;
+    if (!q) return true;
+    const c = p.cliente || {};
+    return [p.token, c.nombre, c.correo, c.telefono].filter(Boolean).join(" ").toLowerCase().includes(q);
+  });
+
+  if (!lista.length) {
+    $("#pedList").innerHTML = `<p class="muted">${q ? "Ningún pedido coincide con la búsqueda." : filtroPed === "pendiente" ? "No hay pedidos pendientes." : "No hay pedidos en este filtro."}</p>`;
+    return;
+  }
+
+  $("#pedList").innerHTML = lista.map((p) => {
+    const est = p.estado || "pendiente";
+    const c = p.cliente || {};
+    const items = (p.items || []).map((it) => {
+      const extra = [it.talla && `Talla ${it.talla}`, it.color, it.personalizacion && `“${it.personalizacion}”`].filter(Boolean).map(esc).join(" · ");
+      const prod = productos().find((x) => x.id === it.id);
+      const stock = Number.isInteger(prod?.stock) ? ` · hay ${prod.stock}` : "";
+      return `<li><span>${esc(it.nombre)} <strong>x${it.qty | 0}</strong><small>${extra}${est === "pendiente" ? esc(stock) : ""}</small></span>
+        <span>${it.precio ? money.format(it.precio * it.qty) : "Consultar"}</span></li>`;
+    }).join("");
+    const acciones = est === "pendiente"
+      ? `<button type="button" class="btn btn--ok btn--sm" data-ped="${esc(p.token)}" data-a="comprado">✓ Compró · descontar</button>
+         <button type="button" class="btn btn--ghost btn--sm btn--danger" data-ped="${esc(p.token)}" data-a="no-comprado">✗ No compró</button>`
+      : est === "comprado"
+        ? `<button type="button" class="btn btn--ghost btn--sm btn--danger" data-ped="${esc(p.token)}" data-a="no-comprado">Anular compra · devolver unidades</button>`
+        : `<button type="button" class="btn btn--ghost btn--sm" data-ped="${esc(p.token)}" data-a="pendiente">Volver a pendiente</button>`;
+    const cierre = p.cerrado ? ` · ${est === "pendiente" ? "reabierto" : "cerrado"} ${fechaPed.format(p.cerrado)}${p.cerradoPor ? " por " + esc(p.cerradoPor) : ""}` : "";
+    return `<article class="ped ped--${est}">
+        <div class="ped__head">
+          <span class="ped__token">${esc(p.token)}</span>
+          <span class="ped__estado ped__estado--${est}">${ESTADOS[est] || est}</span>
+        </div>
+        <p class="ped__meta">${p.fecha ? fechaPed.format(p.fecha) : ""}${cierre}<br>
+          <strong style="color:var(--ink)">${esc(c.nombre || "Cliente")}</strong>
+          ${[c.telefono, c.correo, c.ciudad].filter(Boolean).map(esc).join(" · ")}
+          ${p.notas ? `<br>Notas: ${esc(p.notas)}` : ""}</p>
+        <ul class="ped__items">${items}</ul>
+        <div class="ped__total"><span>Total</span><span>${p.total ? money.format(p.total) : "—"}</span></div>
+        <div class="ped__acc">${acciones}</div>
+      </article>`;
+  }).join("");
+}
+
+$("#pedFiltro").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-f]");
+  if (!b) return;
+  filtroPed = b.dataset.f;
+  $$("#pedFiltro .chip").forEach((c) => c.setAttribute("aria-selected", c === b));
+  renderPedidos();
+});
+$("#pedBuscar").addEventListener("input", renderPedidos);
+$("#pedReload").addEventListener("click", cargarPedidos);
+
+// Botones de cada pedido: primer clic pide confirmar, segundo clic aplica.
+const TEXTO_CONFIRMAR = { comprado: "¿Confirmar compra?", "no-comprado": "¿Confirmar?", pendiente: "¿Reabrir?" };
+$("#pedList").addEventListener("click", async (e) => {
+  const b = e.target.closest("[data-ped]");
+  if (!b) return;
+  if (!b.classList.contains("confirm")) {
+    $$("#pedList .confirm").forEach((x) => { x.classList.remove("confirm"); x.textContent = x.dataset.txt; });
+    b.dataset.txt = b.textContent;
+    b.classList.add("confirm");
+    b.textContent = TEXTO_CONFIRMAR[b.dataset.a] || "¿Seguro?";
+    setTimeout(() => { if (b.isConnected && b.classList.contains("confirm")) { b.classList.remove("confirm"); b.textContent = b.dataset.txt; } }, 4000);
+    return;
+  }
+  b.disabled = true;
+  b.textContent = "Guardando…";
+  const token = b.dataset.ped, nuevo = b.dataset.a;
+  try {
+    const cambios = await AUTH().cambiarEstadoPedido(token, nuevo);
+    const n = Object.keys(cambios || {}).length;
+    toast(nuevo === "comprado"
+      ? `Pedido ${token} comprado${n ? ` · inventario descontado en ${n} producto${n === 1 ? "" : "s"}` : ""}`
+      : nuevo === "no-comprado"
+        ? `Pedido ${token} marcado como no comprado${n ? " · unidades devueltas" : ""}`
+        : `Pedido ${token} pendiente de nuevo`);
+    await cargarPedidos();
+    if (historialCargado) cargarHistorial();
+  } catch (ex) {
+    console.error(ex);
+    toast(ex?.message && !ex.code ? ex.message : AUTH().mensaje(ex));
+    renderPedidos();
+  }
+});
+
 /* ---------- Inventario ---------- */
 let filtroInv = "todos";
 let historialCargado = false;
@@ -445,7 +560,7 @@ movForm.addEventListener("submit", async (e) => {
   }
 });
 
-const TIPOS = { pedido: "Pedido web", entrada: "Entrada", salida: "Salida", ajuste: "Conteo / ajuste", "sin-limite": "Sin control" };
+const TIPOS = { pedido: "Pedido comprado", devolucion: "Compra anulada",entrada: "Entrada", salida: "Salida", ajuste: "Conteo / ajuste", "sin-limite": "Sin control" };
 const fechaCorta = new Intl.DateTimeFormat("es-CO", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
 
 async function cargarHistorial() {
@@ -670,6 +785,7 @@ function render(nuevo) {
   renderSectores();
   renderInventario();
   if (pestana === "inventario" && !historialCargado) cargarHistorial();
+  if (!pedidosCargados) cargarPedidos(); else renderPedidos();
   // No redibujamos los precios mientras se están escribiendo.
   if (!$("#priceEditor").contains(document.activeElement)) renderPrecios();
   mostrar("#panel");

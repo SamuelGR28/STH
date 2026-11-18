@@ -74,7 +74,19 @@ En `admin.html`, pestaña **Inventario**:
   - **Sin control**: el producto es por encargo y no tiene límite de unidades.
 - **Historial de movimientos**: cada cambio queda registrado con fecha, cantidad, unidades que quedan, nota y quién lo hizo.
 
-Cuando un cliente envía un pedido por WhatsApp, la tienda descuenta esas unidades y lo registra como **Pedido web** con el nombre, correo y celular del cliente. Es informativo: si el pedido no se concreta, registra una **Entrada** para devolver las unidades.
+### Pedidos (token)
+
+Cada pedido que un cliente envía por WhatsApp se guarda con un código, por ejemplo `SJTS-7K3Q9P`. El código va en el mensaje de WhatsApp y el pedido queda **pendiente**: todavía no descuenta nada del inventario.
+
+En `admin.html`, pestaña **Pedidos**:
+
+- Filtros: Pendientes, Comprados, No comprados y Todos. También se puede buscar por token, nombre, correo o celular.
+- **✓ Compró · descontar**: el pedido queda como comprado y sus unidades salen del inventario. En el historial queda como "Pedido comprado".
+- **✗ No compró**: el pedido se cierra sin tocar el inventario.
+- **Anular compra**: si un pedido comprado se cae, devuelve las unidades al inventario.
+- **Volver a pendiente**: reabre un pedido marcado como no comprado.
+
+Cada botón pide confirmación con un segundo clic.
 
 ### Agregar, editar, ordenar o quitar sectores
 

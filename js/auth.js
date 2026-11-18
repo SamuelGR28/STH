@@ -205,38 +205,87 @@ window.STH_AUTH = {
     avisar();
   },
 
-  // Descuenta del inventario las unidades de un pedido enviado por WhatsApp
-  // (informativo: el pedido real se confirma por WhatsApp). items = [{ id, qty }].
-  // Productos sin control de inventario no se tocan. Devuelve { id: nuevoStock }.
-  async descontarStock(items) {
-    if (!db || !estado.catalogoGestionado || !estado.usuario) return {};
-    const porProducto = {};
-    items.forEach(({ id, qty }) => { porProducto[id] = (porProducto[id] || 0) + Math.max(0, qty | 0); });
-    const ids = Object.keys(porProducto).filter((id) =>
-      Number.isInteger(estado.productos?.find((p) => p.id === id)?.stock));
-    if (!ids.length) return {};
+  /* ----- Pedidos con token -----
+     Cada pedido enviado por WhatsApp se guarda con un código (token) y queda "pendiente".
+     El administrador lo marca como "comprado" (se descuenta del inventario)
+     o "no-comprado" (no se descuenta). */
+
+  // Código corto y fácil de dictar: SJTS-XXXXXX (sin 0/O ni 1/I/L).
+  nuevoToken() {
+    const letras = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
+    const r = crypto.getRandomValues(new Uint32Array(6));
+    return "SJTS-" + Array.from(r, (n) => letras[n % letras.length]).join("");
+  },
+
+  // Guarda el pedido del cliente con estado "pendiente". No toca el inventario.
+  async crearPedido(token, { items, total, ciudad, notas }) {
     const u = estado.usuario;
-    const nuevos = await runTransaction(db, async (tx) => {
+    if (!db || !u) throw new Error("Inicia sesión para enviar el pedido.");
+    await setDoc(doc(db, "pedidos", token), {
+      token,
+      estado: "pendiente",
+      uid: u.uid,
+      cliente: { nombre: u.nombre || "", correo: u.correo || "", telefono: u.telefono || "", ciudad: ciudad || "" },
+      notas: String(notas || "").slice(0, 500),
+      items: items.slice(0, 50),
+      total: Number(total) || 0,
+      fecha: serverTimestamp()
+    });
+  },
+
+  // Últimos pedidos (solo administradores).
+  async cargarPedidos(cuantos = 200) {
+    const snap = await getDocs(query(collection(db, "pedidos"), orderBy("fecha", "desc"), limit(cuantos)));
+    return snap.docs.map((d) => {
+      const p = d.data();
+      return { ...p, token: d.id, fecha: p.fecha?.toDate ? p.fecha.toDate() : null, cerrado: p.cerrado?.toDate ? p.cerrado.toDate() : null };
+    });
+  },
+
+  // Cambia el estado de un pedido y ajusta el inventario:
+  //   pendiente  -> comprado     : descuenta las unidades
+  //   comprado   -> no-comprado  : devuelve las unidades
+  //   cualquiera -> no-comprado / pendiente sin pasar por "comprado": no toca el inventario
+  async cambiarEstadoPedido(token, nuevo) {
+    await asegurarGestionado();
+    const refPedido = doc(db, "pedidos", token);
+    const cambios = await runTransaction(db, async (tx) => {
+      const sp = await tx.get(refPedido);
+      if (!sp.exists()) throw new Error("No existe el pedido " + token);
+      const pedido = sp.data();
+      const antes = pedido.estado || "pendiente";
+      if (antes === nuevo) return {};
+      const signo = nuevo === "comprado" ? -1 : antes === "comprado" ? 1 : 0;
+
+      // Unidades por producto.
+      const porProducto = {};
+      (pedido.items || []).forEach((it) => { porProducto[it.id] = (porProducto[it.id] || 0) + Math.max(0, it.qty | 0); });
+      const ids = signo ? Object.keys(porProducto) : [];
       const refs = ids.map((id) => doc(db, "productos", id));
       const snaps = await Promise.all(refs.map((r) => tx.get(r)));
+
       const res = {};
       snaps.forEach((s, i) => {
-        const actual = s.exists() ? s.data().stock : null;
-        if (!Number.isInteger(actual) || actual <= 0) return;
-        const nuevo = Math.max(0, actual - Math.min(50, porProducto[ids[i]]));
-        res[ids[i]] = nuevo;
-        tx.update(refs[i], { stock: nuevo });
+        if (!s.exists()) return;
+        const actual = s.data().stock;
+        if (!Number.isInteger(actual)) return; // sin control de inventario
+        const final = Math.max(0, actual + signo * porProducto[ids[i]]);
+        if (final === actual) return;
+        res[ids[i]] = final;
+        tx.update(refs[i], { stock: final });
         tx.set(doc(collection(db, "movimientos")), {
-          ...movimiento(ids[i], s.data().nombre, "pedido", actual, nuevo, "Pedido web por WhatsApp"),
-          cliente: `${u.nombre || ""} · ${u.correo || ""}${u.telefono ? " · " + u.telefono : ""}`,
-          uid: u.uid
+          ...movimiento(ids[i], s.data().nombre, signo < 0 ? "pedido" : "devolucion", actual, final,
+            signo < 0 ? `Pedido ${token} comprado` : `Pedido ${token} anulado`),
+          cliente: [pedido.cliente?.nombre, pedido.cliente?.correo].filter(Boolean).join(" · "),
+          pedido: token
         });
       });
+      tx.update(refPedido, { estado: nuevo, cerrado: serverTimestamp(), cerradoPor: estado.usuario?.correo || "" });
       return res;
     });
-    estado.productos = estado.productos.map((p) => (p.id in nuevos ? { ...p, stock: nuevos[p.id] } : p));
+    estado.productos = estado.productos.map((p) => (p.id in cambios ? { ...p, stock: cambios[p.id] } : p));
     avisar();
-    return nuevos;
+    return cambios;
   },
 
   // Movimiento de inventario hecho por el administrador.
