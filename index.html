@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>STH | Multitienda creativa</title>
+  <meta name="description" content="STH: velas, cuadernos, papelería, vasos personalizados, camisas y ropa. Pide por WhatsApp.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+  <!-- ============ ENCABEZADO ============ -->
+  <header class="topbar">
+    <div class="wrap topbar__inner">
+      <a href="#inicio" class="brand" id="brand" aria-label="Inicio STH">STH</a>
+
+      <nav class="nav" id="nav" aria-label="Principal">
+        <a href="#sectores">Sectores</a>
+        <a href="#catalogo">Catálogo</a>
+        <a href="#como-pedir">Cómo pedir</a>
+        <a href="#nosotros">Nosotros</a>
+        <a href="#contacto">Contacto</a>
+      </nav>
+
+      <div class="topbar__actions">
+        <button class="icon-btn cart-btn" id="openCart" aria-label="Abrir carrito">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6h15l-1.5 9h-12z"/><path d="M6 6 5 3H2"/><circle cx="9" cy="20" r="1.5"/><circle cx="18" cy="20" r="1.5"/></svg>
+          <span class="cart-count" id="cartCount">0</span>
+        </button>
+        <button class="icon-btn menu-btn" id="menuBtn" aria-label="Abrir menú" aria-expanded="false">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <!-- ============ PORTADA ============ -->
+    <section class="hero" id="inicio">
+      <div class="wrap hero__inner">
+        <div class="hero__text">
+          <p class="eyebrow">Multitienda creativa</p>
+          <h1>Detalles hechos a mano, <em>con tu nombre</em>.</h1>
+          <p class="lead" id="eslogan">Velas, cuadernos, papelería, vasos, camisas y ropa personalizados en un solo lugar.</p>
+          <div class="hero__cta">
+            <a href="#catalogo" class="btn btn--primary">Ver catálogo</a>
+            <a href="#" class="btn btn--ghost" id="heroWhatsapp" target="_blank" rel="noopener">Escríbenos</a>
+          </div>
+        </div>
+        <div class="hero__art" aria-hidden="true">
+          <div class="tile tile--a" data-icon="velas"></div>
+          <div class="tile tile--b" data-icon="vasos"></div>
+          <div class="tile tile--c" data-icon="camisas"></div>
+          <div class="tile tile--d" data-icon="cuadernos"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ SECTORES ============ -->
+    <section class="section" id="sectores">
+      <div class="wrap">
+        <div class="section__head">
+          <h2>Nuestros sectores</h2>
+          <p>Elige un sector para ver sus productos.</p>
+        </div>
+        <div class="sectors" id="sectorsGrid"></div>
+      </div>
+    </section>
+
+    <!-- ============ DESTACADOS ============ -->
+    <section class="section section--tint" id="destacados">
+      <div class="wrap">
+        <div class="section__head">
+          <h2>Lo más pedido</h2>
+        </div>
+        <div class="products" id="featuredGrid"></div>
+      </div>
+    </section>
+
+    <!-- ============ CATÁLOGO ============ -->
+    <section class="section" id="catalogo">
+      <div class="wrap">
+        <div class="section__head">
+          <h2>Catálogo</h2>
+          <p id="catalogInfo"></p>
+        </div>
+
+        <div class="filters">
+          <div class="chips" id="chips" role="tablist" aria-label="Filtrar por sector"></div>
+          <div class="filters__row">
+            <label class="search">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
+              <input type="search" id="searchInput" placeholder="Buscar productos…" aria-label="Buscar productos">
+            </label>
+            <select id="sortSelect" aria-label="Ordenar">
+              <option value="relevancia">Ordenar: destacados</option>
+              <option value="precio-asc">Precio: menor a mayor</option>
+              <option value="precio-desc">Precio: mayor a menor</option>
+              <option value="nombre">Nombre A–Z</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="products" id="productsGrid"></div>
+        <p class="empty" id="emptyMsg" hidden>No encontramos productos con esa búsqueda.</p>
+      </div>
+    </section>
+
+    <!-- ============ CÓMO PEDIR ============ -->
+    <section class="section section--tint" id="como-pedir">
+      <div class="wrap">
+        <div class="section__head">
+          <h2>Cómo pedir</h2>
+        </div>
+        <ol class="steps">
+          <li><span>1</span><h3>Elige</h3><p>Agrega productos al carrito y escribe el nombre o frase para personalizar.</p></li>
+          <li><span>2</span><h3>Envía</h3><p>Tu pedido llega a nuestro WhatsApp con todos los detalles.</p></li>
+          <li><span>3</span><h3>Confirma</h3><p>Te enviamos el diseño, el costo de envío y los datos de pago.</p></li>
+          <li><span>4</span><h3>Recibe</h3><p id="envioTxt">Hacemos envíos a todo el país.</p></li>
+        </ol>
+      </div>
+    </section>
+
+    <!-- ============ NOSOTROS ============ -->
+    <section class="section" id="nosotros">
+      <div class="wrap about">
+        <div>
+          <h2>Sobre STH</h2>
+          <p>Somos una multitienda creativa. Hacemos velas, cuadernos, papelería, vasos, camisas y ropa, y personalizamos cada pieza para que sea única.</p>
+          <p>Ideal para regalos, emprendimientos, eventos, empresas y colegios.</p>
+        </div>
+        <ul class="perks">
+          <li><strong>Personalizado</strong><span>Tu nombre, foto, logo o frase.</span></li>
+          <li><strong>Hecho a mano</strong><span>Cada producto se prepara con cuidado.</span></li>
+          <li><strong>Pedidos al por mayor</strong><span>Precios especiales para grupos y eventos.</span></li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ============ CONTACTO ============ -->
+    <section class="section section--dark" id="contacto">
+      <div class="wrap contact">
+        <div>
+          <h2>Contacto</h2>
+          <p>¿Tienes una idea? Escríbenos y la hacemos realidad.</p>
+          <a href="#" class="btn btn--primary" id="contactWhatsapp" target="_blank" rel="noopener">Chatear por WhatsApp</a>
+        </div>
+        <ul class="contact__list" id="contactList"></ul>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="wrap footer__inner">
+      <span>© <span id="year"></span> STH · Multitienda creativa</span>
+      <a href="#inicio">Volver arriba ↑</a>
+    </div>
+  </footer>
+
+  <!-- ============ MODAL DE PRODUCTO ============ -->
+  <dialog class="modal" id="productModal" aria-labelledby="modalTitle">
+    <form method="dialog" class="modal__inner" id="productForm">
+      <button class="icon-btn modal__close" value="cancel" aria-label="Cerrar">✕</button>
+      <div class="modal__media" id="modalMedia"></div>
+      <div class="modal__body">
+        <p class="eyebrow" id="modalSector"></p>
+        <h3 id="modalTitle"></h3>
+        <p class="price" id="modalPrice"></p>
+        <p id="modalDesc"></p>
+        <div id="modalOptions"></div>
+        <div class="qty-row">
+          <span>Cantidad</span>
+          <div class="qty">
+            <button type="button" data-step="-1" aria-label="Menos">−</button>
+            <input type="number" id="modalQty" value="1" min="1" max="999" aria-label="Cantidad">
+            <button type="button" data-step="1" aria-label="Más">+</button>
+          </div>
+        </div>
+        <button type="submit" class="btn btn--primary btn--block" value="add" id="modalAdd">Agregar al carrito</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- ============ CARRITO ============ -->
+  <div class="overlay" id="overlay" hidden></div>
+  <aside class="cart" id="cart" aria-label="Carrito" aria-hidden="true">
+    <div class="cart__head">
+      <h3>Tu pedido</h3>
+      <button class="icon-btn" id="closeCart" aria-label="Cerrar carrito">✕</button>
+    </div>
+    <div class="cart__items" id="cartItems"></div>
+    <div class="cart__foot" id="cartFoot">
+      <div class="cart__total"><span>Total</span><strong id="cartTotal">$0</strong></div>
+      <p class="hint">El costo de envío se confirma por WhatsApp.</p>
+      <label class="field">Tu nombre
+        <input type="text" id="custName" autocomplete="name" placeholder="¿A nombre de quién?">
+      </label>
+      <label class="field">Ciudad / barrio
+        <input type="text" id="custCity" placeholder="Para calcular el envío">
+      </label>
+      <label class="field">Notas (opcional)
+        <textarea id="custNotes" rows="2" placeholder="Fecha de entrega, detalles del diseño…"></textarea>
+      </label>
+      <button class="btn btn--whatsapp btn--block" id="sendOrder">Enviar pedido por WhatsApp</button>
+      <button class="link-btn" id="clearCart">Vaciar carrito</button>
+    </div>
+  </aside>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="js/config.js"></script>
+  <script src="js/productos.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
