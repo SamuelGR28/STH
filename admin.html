@@ -115,6 +115,11 @@
     .ped__acc { display: flex; gap: 8px; flex-wrap: wrap; }
     .btn--ok { background: #1f9d55; color: #fff; }
     .btn--ok:hover, .btn--ok.confirm { background: #17824a; }
+    .por-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px; max-width: 560px; }
+    .por { display: flex; flex-direction: column; gap: 8px; }
+    .por__tile { width: 100%; transform: none !important; }
+    .por__name { margin: 0; font-weight: 700; font-size: .9rem; }
+    .por__acc { display: flex; gap: 6px; flex-wrap: wrap; }
     .modal--form { width: min(560px, 100% - 32px); }
     @media (max-width: 520px) {
       .admin__row { grid-template-columns: 1fr 130px; }
@@ -184,6 +189,7 @@
         <button class="tab" role="tab" data-tab="inventario" aria-selected="false">Inventario</button>
         <button class="tab" role="tab" data-tab="precios" aria-selected="false">Precios</button>
         <button class="tab" role="tab" data-tab="sectores" aria-selected="false">Sectores</button>
+        <button class="tab" role="tab" data-tab="portada" aria-selected="false">Portada</button>
       </div>
 
       <!-- Pedidos -->
@@ -244,6 +250,13 @@
           <button type="button" class="btn btn--ghost btn--sm" id="invReload">Actualizar</button>
         </div>
         <div class="admin__card" id="invHist"><p class="muted" style="margin:0">Cargando…</p></div>
+      </div>
+
+      <!-- Portada -->
+      <div data-view="portada" hidden>
+        <p class="muted">Son los 4 recuadros que aparecen junto al título al abrir la tienda. Sube una foto en cada uno, o déjalo vacío para mostrar la ilustración. Las fotos se recortan solas a la forma del recuadro; usa fotos cuadradas con el producto centrado.</p>
+        <div class="admin__card"><div class="por-grid" id="portadaGrid"></div></div>
+        <input type="file" id="portadaInput" accept="image/*" hidden>
       </div>
 
       <!-- Sectores -->

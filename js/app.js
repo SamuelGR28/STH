@@ -147,7 +147,7 @@
     $("#heroWhatsapp").href = waLink(hola);
     $("#contactWhatsapp").href = waLink(hola);
 
-    $$(".hero__art .tile").forEach((t) => (t.innerHTML = icon(t.dataset.icon)));
+    pintarPortada(null);
 
     const items = [];
     if (CFG.whatsapp) items.push(["WhatsApp", `<a href="${waLink("")}" target="_blank" rel="noopener">+${esc(CFG.whatsapp)}</a>`]);
@@ -654,9 +654,23 @@
     renderCart();
   }
 
+  // Los 4 recuadros de la portada: foto subida en admin.html > Portada, o la ilustración.
+  // fotos = null mientras cargan (se ven las ilustraciones).
+  let portadaActual = "";
+  function pintarPortada(fotos) {
+    const clave = JSON.stringify(fotos || []);
+    if (fotos && clave === portadaActual) return;
+    portadaActual = clave;
+    $$(".hero__art .tile").forEach((t, i) => {
+      const f = fotos?.[i];
+      t.innerHTML = f ? `<img src="${esc(f)}" alt="" loading="eager">` : icon(t.dataset.icon);
+    });
+  }
+
   let uidAnterior = null;
   function aplicarEstado(detalle) {
     sesion = { ...sesion, ...detalle };
+    if (Array.isArray(detalle.portada)) pintarPortada(detalle.portada);
     if (Array.isArray(detalle.sectores)) setSectores(detalle.sectores);
     if (Array.isArray(detalle.productos)) setProductos(detalle.productos);
     renderSesion();

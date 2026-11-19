@@ -34,6 +34,7 @@ const estado = {
   precios: {},
   productos: null,           // null = cargando; luego, lista de productos
   sectores: null,            // null = cargando; luego, lista de sectores
+  portada: null,             // null = cargando; luego, 4 fotos ("" = mostrar ilustración)
   catalogoGestionado: false, // true = los productos vienen de Firebase
   error: ""
 };
@@ -93,6 +94,14 @@ async function cargarProductos() {
     estado.sectores = SECTORES_EJEMPLO;
   }
   try {
+    // Fotos de la portada (los 4 recuadros junto al título).
+    const port = await getDoc(doc(db, "ajustes", "portada"));
+    const fotos = port.exists() && Array.isArray(port.data().fotos) ? port.data().fotos : [];
+    estado.portada = [0, 1, 2, 3].map((i) => (typeof fotos[i] === "string" ? fotos[i] : ""));
+  } catch (e) {
+    estado.portada = ["", "", "", ""];
+  }
+  try {
     const ajustes = await getDoc(doc(db, "ajustes", "catalogo"));
     if (ajustes.exists() && ajustes.data().gestionado) {
       const snap = await getDocs(collection(db, "productos"));
@@ -148,6 +157,14 @@ window.STH_AUTH = {
   async salir() { await signOut(auth); },
 
   // Guarda la lista completa de sectores (en el orden en que se muestran).
+  // Guarda las 4 fotos de la portada ("" = sin foto, se ve la ilustración).
+  async guardarPortada(fotos) {
+    const lista = [0, 1, 2, 3].map((i) => (typeof fotos[i] === "string" ? fotos[i] : ""));
+    await setDoc(doc(db, "ajustes", "portada"), { fotos: lista });
+    estado.portada = lista;
+    avisar();
+  },
+
   async guardarSectores(lista) {
     const limpia = lista.map(({ id, nombre, descripcion, icono, color }) =>
       ({ id, nombre, descripcion: descripcion || "", icono: icono || "estrella", color: color || "#f4ebe0" }));

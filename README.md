@@ -61,6 +61,13 @@ La foto se reduce sola a 800 px y se guarda en Firebase. No hace falta subirla a
 
 `js/productos.js` solo tiene los productos de ejemplo. La tienda los muestra hasta que hagas el primer cambio en **Productos**. En ese momento se copian a Firebase, y desde entonces se ignora el archivo.
 
+### Fotos de la portada
+
+En `admin.html`, pestaña **Portada**, puedes cambiar los 4 recuadros que aparecen junto al título de la tienda:
+
+- **Subir foto / Cambiar foto**: la foto se reduce sola y se recorta a la forma del recuadro. Funcionan mejor las fotos cuadradas con el producto centrado.
+- **Quitar**: vuelve a mostrar la ilustración.
+
 ### Carritos abandonados (recordatorio)
 
 - **En la tienda:**

@@ -5,6 +5,7 @@
    - Productos: agregar, editar y eliminar (con foto).
    - Precios: editar todos los precios a la vez.
    - Sectores: agregar, editar, ordenar y eliminar.
+   - Portada: las 4 fotos junto al título de la tienda.
    - Inventario: entradas, salidas, conteos e historial de movimientos.
    La seguridad real está en firestore.rules: aunque alguien
    abra esta página, solo los administradores pueden guardar.
@@ -715,6 +716,82 @@ async function cargarHistorial() {
 }
 $("#invReload").addEventListener("click", cargarHistorial);
 
+/* ---------- Portada (4 fotos junto al título de la tienda) ---------- */
+const PORTADA_ICONOS = ["velas", "vasos", "camisas", "cuadernos"];
+const PORTADA_NOMBRES = ["Arriba a la izquierda", "Arriba a la derecha", "Abajo a la izquierda", "Abajo a la derecha"];
+let portadaFotos = ["", "", "", ""];
+let portadaSlot = 0;
+let portadaGuardando = false;
+
+function renderPortada() {
+  if (Array.isArray(estado.portada) && !portadaGuardando) portadaFotos = estado.portada.slice(0, 4);
+  $("#portadaGrid").innerHTML = PORTADA_ICONOS.map((ic, i) => {
+    const f = portadaFotos[i];
+    return `<div class="por">
+        <div class="tile tile--${"abcd"[i]} por__tile">${f ? `<img src="${esc(f)}" alt="Foto ${i + 1}">` : UI.svg(ic)}</div>
+        <p class="por__name">${PORTADA_NOMBRES[i]}</p>
+        <div class="por__acc">
+          <button type="button" class="btn btn--ghost btn--sm" data-por-cambiar="${i}">${f ? "Cambiar foto" : "Subir foto"}</button>
+          ${f ? `<button type="button" class="btn btn--ghost btn--sm btn--danger" data-por-quitar="${i}">Quitar</button>` : ""}
+        </div>
+      </div>`;
+  }).join("");
+}
+
+async function guardarPortada(nuevas, mensajeOk) {
+  portadaGuardando = true;
+  const antes = portadaFotos.slice();
+  portadaFotos = nuevas;
+  renderPortada();
+  try {
+    await AUTH().guardarPortada(nuevas);
+    toast(mensajeOk);
+  } catch (ex) {
+    portadaFotos = antes;
+    toast(AUTH().mensaje(ex));
+  } finally {
+    portadaGuardando = false;
+    renderPortada();
+  }
+}
+
+$("#portadaGrid").addEventListener("click", (e) => {
+  const c = e.target.closest("[data-por-cambiar]");
+  if (c) {
+    portadaSlot = Number(c.dataset.porCambiar);
+    $("#portadaInput").click();
+    return;
+  }
+  const q = e.target.closest("[data-por-quitar]");
+  if (!q) return;
+  if (!q.classList.contains("confirm")) {
+    q.classList.add("confirm");
+    q.textContent = "¿Seguro?";
+    setTimeout(() => { if (q.isConnected) { q.classList.remove("confirm"); q.textContent = "Quitar"; } }, 4000);
+    return;
+  }
+  const nuevas = portadaFotos.slice();
+  nuevas[Number(q.dataset.porQuitar)] = "";
+  guardarPortada(nuevas, "Foto quitada: se verá la ilustración");
+});
+
+$("#portadaInput").addEventListener("change", async (e) => {
+  const file = e.target.files?.[0];
+  e.target.value = "";
+  if (!file || !file.type.startsWith("image/")) return;
+  const slot = portadaSlot;
+  $$("#portadaGrid .por__tile")[slot].innerHTML = '<span class="hintline">Procesando…</span>';
+  try {
+    const foto = await comprimir(file);
+    const nuevas = portadaFotos.slice();
+    nuevas[slot] = foto;
+    await guardarPortada(nuevas, "Foto de portada guardada");
+  } catch (ex) {
+    toast(ex?.message || "No se pudo leer la imagen.");
+    renderPortada();
+  }
+});
+
 /* ---------- Sectores ---------- */
 function renderSectores() {
   const lista = productos();
@@ -914,6 +991,7 @@ function render(nuevo) {
   renderProductos();
   renderSectores();
   renderInventario();
+  renderPortada();
   if (pestana === "inventario" && !historialCargado) cargarHistorial();
   if (!pedidosCargados) cargarPedidos(); else renderPedidos();
   if (!carritosCargados) cargarCarritos(); else renderCarritos();
