@@ -164,7 +164,7 @@ Los datos de `firebaseConfig` (como `apiKey`) son públicos por diseño. La segu
 
 1. Firebase > **Authentication > Usuarios > Agregar usuario**: correo y contraseña.
 2. Agrega ese correo en `js/config.js` (`administradores`) y en `firestore.rules` (`esAdmin`), y publica las reglas.
-3. El administrador entra en `https://sjtsmanualidades.com/admin.html`. También hay un enlace **Administrar** al pie de la tienda.
+3. El administrador entra en `https://sjtsmanualidades.com/admin.html`. También desde el botón **Ingreso admin** en la parte de arriba de la tienda.
 
 ### Poner o cambiar precios
 
