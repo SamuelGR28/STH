@@ -27,9 +27,9 @@
       </nav>
 
       <div class="topbar__actions">
-        <button class="account-btn" id="accountBtn" aria-haspopup="dialog">
+        <button class="account-btn is-in" id="accountBtn" aria-haspopup="dialog" hidden>
           <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>
-          <span id="accountLabel">Ingresar</span>
+          <span id="accountLabel">Admin</span>
         </button>
         <button class="icon-btn cart-btn" id="openCart" aria-label="Abrir carrito">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6h15l-1.5 9h-12z"/><path d="M6 6 5 3H2"/><circle cx="9" cy="20" r="1.5"/><circle cx="18" cy="20" r="1.5"/></svg>
@@ -91,17 +91,6 @@
         <div class="section__head">
           <h2>Catálogo</h2>
           <p id="catalogInfo"></p>
-        </div>
-
-        <div class="price-notice" id="priceNotice" hidden>
-          <div>
-            <strong>Los precios son solo para clientes registrados.</strong>
-            <span>Crea tu cuenta gratis en un minuto para ver precios y hacer pedidos.</span>
-          </div>
-          <div class="price-notice__actions">
-            <button class="btn btn--primary" data-auth="registro">Crear cuenta</button>
-            <button class="btn btn--ghost" data-auth="ingresar">Ingresar</button>
-          </div>
         </div>
 
         <div class="price-notice" id="adminNotice" hidden>
@@ -181,7 +170,7 @@
 
   <footer class="footer">
     <div class="wrap footer__inner">
-      <span>© <span id="year"></span> SJTS · Multitienda creativa</span>
+      <span>© <span id="year"></span> SJTS · Multitienda creativa · <a href="admin.html">Administrar</a></span>
       <a href="#inicio">Volver arriba ↑</a>
     </div>
   </footer>
@@ -225,6 +214,9 @@
       <label class="field">Tu nombre
         <input type="text" id="custName" autocomplete="name" placeholder="¿A nombre de quién?">
       </label>
+      <label class="field">Celular / WhatsApp
+        <input type="tel" id="custPhone" autocomplete="tel" inputmode="tel" placeholder="Para confirmar tu pedido">
+      </label>
       <label class="field">Ciudad / barrio
         <input type="text" id="custCity" placeholder="Para calcular el envío">
       </label>
@@ -241,67 +233,16 @@
     <div class="auth">
       <button class="icon-btn modal__close" data-auth-close aria-label="Cerrar">✕</button>
 
-      <!-- Sesión iniciada -->
-      <div class="auth__panel" data-panel="cuenta" hidden>
-        <p class="eyebrow">Mi cuenta</p>
+      <!-- Sesión de administrador (los clientes no tienen cuenta) -->
+      <div class="auth__panel" data-panel="cuenta">
+        <p class="eyebrow">Administrador</p>
         <h3 id="authTitle">Hola, <span id="acctName"></span></h3>
         <p class="muted" id="acctEmail"></p>
-        <p class="auth__ok">Ya puedes ver los precios y hacer pedidos.</p>
+        <p class="auth__ok">Tienes la sesión de administrador abierta en este navegador.</p>
         <a href="admin.html" class="btn btn--ghost btn--block" id="adminLink" hidden>Administrar tienda</a>
         <button class="btn btn--primary btn--block" id="logoutBtn">Cerrar sesión</button>
       </div>
 
-      <!-- Ingresar -->
-      <form class="auth__panel" data-panel="ingresar" id="loginForm" novalidate>
-        <p class="eyebrow">Clientes SJTS</p>
-        <h3>Ingresar</h3>
-        <p class="muted">Inicia sesión para ver los precios.</p>
-        <label class="field">Correo
-          <input type="email" name="correo" autocomplete="email" required>
-        </label>
-        <label class="field">Contraseña
-          <input type="password" name="clave" autocomplete="current-password" required>
-        </label>
-        <p class="auth__error" role="alert"></p>
-        <button class="btn btn--primary btn--block" type="submit">Ingresar</button>
-        <button class="link-btn" type="button" data-auth="recuperar">Olvidé mi contraseña</button>
-        <p class="auth__switch">¿No tienes cuenta? <button type="button" class="link-btn inline" data-auth="registro">Crear cuenta</button></p>
-      </form>
-
-      <!-- Registro -->
-      <form class="auth__panel" data-panel="registro" id="registerForm" novalidate hidden>
-        <p class="eyebrow">Clientes SJTS</p>
-        <h3>Crear cuenta</h3>
-        <p class="muted">Gratis. Te permite ver precios y hacer pedidos.</p>
-        <label class="field">Nombre completo
-          <input type="text" name="nombre" autocomplete="name" required>
-        </label>
-        <label class="field">Celular / WhatsApp
-          <input type="tel" name="telefono" autocomplete="tel" inputmode="tel" required>
-        </label>
-        <label class="field">Correo
-          <input type="email" name="correo" autocomplete="email" required>
-        </label>
-        <label class="field">Contraseña (mínimo 6 caracteres)
-          <input type="password" name="clave" autocomplete="new-password" minlength="6" required>
-        </label>
-        <p class="auth__error" role="alert"></p>
-        <button class="btn btn--primary btn--block" type="submit">Crear cuenta</button>
-        <p class="auth__switch">¿Ya tienes cuenta? <button type="button" class="link-btn inline" data-auth="ingresar">Ingresar</button></p>
-      </form>
-
-      <!-- Recuperar contraseña -->
-      <form class="auth__panel" data-panel="recuperar" id="resetForm" novalidate hidden>
-        <p class="eyebrow">Clientes SJTS</p>
-        <h3>Recuperar contraseña</h3>
-        <p class="muted">Te enviamos un enlace a tu correo para crear una nueva.</p>
-        <label class="field">Correo
-          <input type="email" name="correo" autocomplete="email" required>
-        </label>
-        <p class="auth__error" role="alert"></p>
-        <button class="btn btn--primary btn--block" type="submit">Enviar enlace</button>
-        <p class="auth__switch"><button type="button" class="link-btn inline" data-auth="ingresar">Volver a ingresar</button></p>
-      </form>
     </div>
   </dialog>
 

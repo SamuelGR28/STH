@@ -8,7 +8,7 @@ Es una página estática (HTML, CSS y JavaScript) publicada gratis con **GitHub 
 
 - **Sectores**: Velas, Cuadernos, Papelería, Vasos personalizados, Camisas y Ropa.
 - **Catálogo** con filtro por sector, buscador y orden por precio o nombre.
-- **Cuentas de clientes**: registro e inicio de sesión con correo. Los precios solo se ven con sesión iniciada.
+- **Sin registro de clientes**: cualquiera ve los precios y pide escribiendo solo su nombre y celular. Cada visitante recibe una sesión anónima automática, que permite llevar control de pedidos y carritos sin pedirle una cuenta.
 - **Administración** (`admin.html`): el dueño cambia los precios sin tocar código.
 - **Ficha de producto** con talla, color y texto para personalizar.
 - **Carrito** que se guarda en el navegador del cliente.
@@ -73,7 +73,7 @@ En `admin.html`, pestaña **Portada**, puedes cambiar los 4 recuadros que aparec
 - **En la tienda:**
   - Si un cliente vuelve más de 30 minutos después con productos en el carrito, le sale el aviso "Tienes N productos esperando en tu carrito" con el botón **Ver carrito**.
   - Si cambia de pestaña, el título dice "🛒 ¡Olvidaste algo en tu carrito!".
-- **Si el cliente tiene sesión:** su carrito se guarda en Firebase. Si entra desde otro dispositivo, lo recupera.
+- **El carrito del visitante se guarda en Firebase.** Si escribió su nombre y celular, aparece con esos datos en admin.
 - **En `admin.html`, pestaña Carritos:**
   - Lista a los clientes que dejaron productos hace más de 1 hora sin enviar el pedido.
   - **Recordar por WhatsApp** abre WhatsApp con el mensaje ya escrito para ese cliente: solo tienes que pulsar enviar.
@@ -143,34 +143,29 @@ Luego abre http://localhost:3000.
 
 Cada cambio que subas a `main` se publica solo.
 
-## Cuentas de clientes y precios (Firebase)
+## Firebase: precios, pedidos y acceso
 
-Los precios **no** están en el código de la página, porque el código es público. Se guardan en Firebase y solo se entregan a usuarios con sesión iniciada. Las reglas de `firestore.rules` lo garantizan.
+Los clientes **no se registran**. La tienda usa el **acceso anónimo** de Firebase: cada visitante recibe automáticamente una sesión invisible, sin correo ni contraseña. Con esa sesión puede ver precios, guardar su carrito y enviar pedidos con token. Las reglas de `firestore.rules` impiden que cambie productos, precios o inventario.
 
-### Configurar Firebase (una sola vez, unos 10 minutos)
+Solo los administradores entran con correo y contraseña, en `admin.html`.
 
-1. Entra a https://console.firebase.google.com con tu cuenta de Google y pulsa **Crear un proyecto**. Puedes desactivar Google Analytics.
-2. **Activar el registro con correo:** menú **Compilación > Authentication > Comenzar**. En **Método de acceso**, activa **Correo electrónico/contraseña** y guarda.
-3. **Autorizar el dominio:** en **Authentication > Configuración > Dominios autorizados**, agrega `samuelgr28.github.io`. (`localhost` ya viene incluido).
-4. **Crear la base de datos:** menú **Compilación > Firestore Database > Crear base de datos**. Elige una ubicación (por ejemplo `southamerica-east1`) y **modo de producción**.
-5. **Reglas de seguridad:** en Firestore, pestaña **Reglas**. Borra lo que hay, pega todo el contenido de `firestore.rules`, cambia `correo-del-dueno@ejemplo.com` por tu correo y pulsa **Publicar**.
-6. **Conectar la página:** en **Configuración del proyecto** (ícono de engranaje) > **Tus apps**, pulsa el ícono web `</>`, ponle un nombre y registra la app. Copia los valores de `firebaseConfig` en `js/config.js`, dentro de `firebase: { ... }`.
-7. En `js/config.js`, cambia `administradores` por tu correo (el mismo del paso 5).
-8. Sube los cambios a GitHub.
+### Configurar Firebase (una sola vez)
 
-Los datos de `firebaseConfig` (como `apiKey`) son públicos por diseño. La seguridad la dan las reglas del paso 5.
+1. Entra a https://console.firebase.google.com y crea un proyecto.
+2. **Authentication > Método de acceso**: activa **Correo electrónico/contraseña** (para los administradores) y **Anónimo** (para los visitantes).
+3. **Authentication > Configuración > Dominios autorizados**: agrega `samuelgr28.github.io`. `localhost` ya viene incluido.
+4. **Firestore Database > Crear base de datos**: ubicación `southamerica-east1`, en **modo de producción**.
+5. **Firestore > Reglas**: pega todo `firestore.rules` y pulsa **Publicar**. Los correos de administrador deben ser los mismos de `js/config.js` > `administradores`.
+6. **Configuración del proyecto > Tus apps > Web `</>`**: copia `firebaseConfig` en `js/config.js`.
+
+Los datos de `firebaseConfig` (como `apiKey`) son públicos por diseño. La seguridad la dan las reglas.
+
+### Crear la cuenta de un administrador
+
+1. Firebase > **Authentication > Usuarios > Agregar usuario**: correo y contraseña.
+2. Agrega ese correo en `js/config.js` (`administradores`) y en `firestore.rules` (`esAdmin`), y publica las reglas.
+3. El administrador entra en `https://samuelgr28.github.io/STH/admin.html`. También hay un enlace **Administrar** al pie de la tienda.
 
 ### Poner o cambiar precios
 
-1. En la tienda, pulsa **Ingresar > Crear cuenta** y regístrate con el correo de administrador.
-2. Abre el correo de verificación que te llega y confirma tu cuenta. Revisa también spam.
-3. Cierra sesión y vuelve a ingresar, para que Firebase reconozca la verificación.
-4. Abre `https://samuelgr28.github.io/STH/admin.html` (o **Mi cuenta > Administrar tienda**).
-5. Escribe los precios y pulsa **Guardar precios**. Los clientes los ven al instante.
-
-Un producto sin precio muestra "Consultar".
-
-### Ver los clientes registrados
-
-- Cuentas: **Authentication > Usuarios**.
-- Nombre y celular: **Firestore Database > usuarios**.
+En `admin.html`, pestaña **Precios**. Un producto sin precio muestra "Consultar".

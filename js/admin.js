@@ -500,7 +500,7 @@ function renderCarritos() {
       : "";
     return `<article class="ped ${c.recordado ? "ped--comprado" : "ped--pendiente"}">
         <div class="ped__head">
-          <strong>${esc(cl.nombre || "Cliente")}</strong>
+          <strong>${esc(cl.nombre || "Visitante sin nombre")}</strong>
           <span class="ped__estado ${c.recordado ? "ped__estado--comprado" : "ped__estado--pendiente"}">${c.recordado ? "Recordado " + haceCuanto(c.recordado) : "Sin recordar"}</span>
         </div>
         <p class="ped__meta">Último cambio ${haceCuanto(c.actualizado)} · ${[cl.telefono, cl.correo].filter(Boolean).map(esc).join(" · ")}</p>
@@ -509,6 +509,7 @@ function renderCarritos() {
         <div class="ped__acc">
           ${enlaceWa ? `<a class="btn btn--ok btn--sm" href="${enlaceWa}" target="_blank" rel="noopener" data-recordar="${esc(c.uid)}">Recordar por WhatsApp</a>` : ""}
           ${enlaceMail ? `<a class="btn btn--ghost btn--sm" href="${enlaceMail}" data-recordar="${esc(c.uid)}">Recordar por correo</a>` : ""}
+          ${!enlaceWa && !enlaceMail ? '<span class="muted" style="align-self:center;font-size:.85rem">Sin datos de contacto</span>' : ""}
           <button type="button" class="btn btn--ghost btn--sm btn--danger" data-quitar-car="${esc(c.uid)}">Quitar de la lista</button>
         </div>
       </article>`;

@@ -71,11 +71,13 @@
 
   // Sesión y precios: los llena js/auth.js con el evento "sth:auth".
   let sesion = { listo: false, configurado: true, usuario: null, precios: {}, error: "" };
-  const conSesion = () => Boolean(sesion.usuario);
+  // Cada visitante tiene una sesión anónima automática (sin registrarse).
+  const conSesion = () => Boolean(sesion.uid);
+  // Administrador con su correo (si abrió la tienda con su sesión de admin).
+  const esUsuario = () => Boolean(sesion.usuario);
 
   // Precio de un producto, o null si no hay sesión o no tiene precio cargado.
   function precio(p) {
-    if (!conSesion()) return null;
     const v = Number(sesion.precios[p.id]);
     return Number.isFinite(v) && v > 0 ? v : null;
   }
@@ -95,7 +97,6 @@
 
   function precioHTML(p) {
     if (!sesion.listo) return '<span class="price-wait">Cargando…</span>';
-    if (!conSesion()) return `<button type="button" class="price-lock" data-auth="ingresar">${LOCK}Ver precio</button>`;
     const v = precio(p);
     return v ? `<span class="price">${fmt(v)}</span>` : '<span class="price-wait">Consultar</span>';
   }
@@ -122,7 +123,7 @@
         id: l.id, nombre: productById[l.id].nombre, qty: l.qty,
         talla: l.talla || "", color: l.color || "", personalizacion: l.personalizacion || ""
       }));
-      window.STH_AUTH.guardarCarrito(items, totalCarrito()).catch((ex) =>
+      window.STH_AUTH.guardarCarrito(items, totalCarrito(), clienteGuardado()).catch((ex) =>
         console.warn("[SJTS] No se pudo guardar el carrito:", ex?.code || ex));
     }, 2000);
   }
@@ -202,7 +203,7 @@
           ${stockHTML(p)}
           <div class="card__foot">
             ${precioHTML(p)}
-            <button class="btn btn--primary card__add" data-open="${esc(p.id)}">${conSesion() ? "Agregar" : "Ver"}</button>
+            <button class="btn btn--primary card__add" data-open="${esc(p.id)}">Agregar</button>
           </div>
         </div>
       </article>`;
@@ -289,8 +290,8 @@
     $("#modalDesc").textContent = p.descripcion;
     $("#modalStock").innerHTML = stockHTML(p);
     const agotado = stockDe(p) === 0;
-    $("#modalAdd").textContent = !conSesion() ? "Ingresa para ver el precio y pedir" : (agotado ? "Agotado" : "Agregar al carrito");
-    $("#modalAdd").disabled = conSesion() && agotado;
+    $("#modalAdd").textContent = agotado ? "Agotado" : "Agregar al carrito";
+    $("#modalAdd").disabled = agotado;
 
     let opts = "";
     if (p.tallas?.length) opts += pills("talla", "Talla", p.tallas, false);
@@ -318,11 +319,6 @@
 
   $("#productForm").addEventListener("submit", (e) => {
     if (e.submitter?.value !== "add" || !current) return;
-    if (!conSesion()) {
-      // El diálogo se cierra solo (method="dialog"); luego abrimos el de ingreso.
-      setTimeout(() => openAuth("ingresar"), 0);
-      return;
-    }
     const libres = disponiblesPara(current);
     if (libres !== null && libres <= 0) {
       e.preventDefault();
@@ -379,16 +375,20 @@
   const totalCarrito = () => cart.reduce((n, l) => n + l.qty * (precio(productById[l.id]) || 0), 0);
   const subtotal = (p, qty) => {
     const v = precio(p);
-    return v ? fmt(v * qty) : (conSesion() ? "Consultar" : "—");
+    return v ? fmt(v * qty) : "Consultar";
   };
 
   function renderCart() {
     const count = cart.reduce((n, l) => n + l.qty, 0);
     $("#cartCount").textContent = count;
-    $("#cartTotal").textContent = conSesion() ? fmt(totalCarrito()) : "Ingresa para ver";
+    $("#cartTotal").textContent = fmt(totalCarrito());
     $("#cartFoot").hidden = cart.length === 0;
-    $("#sendOrder").textContent = conSesion() ? "Enviar pedido por WhatsApp" : "Ingresa para enviar tu pedido";
-    if (conSesion() && !$("#custName").value) $("#custName").value = sesion.usuario.nombre || "";
+    $("#sendOrder").textContent = "Enviar pedido por WhatsApp";
+    // Datos del cliente recordados en este navegador (no necesita cuenta).
+    const c = clienteGuardado();
+    if (!$("#custName").value) $("#custName").value = c.nombre || "";
+    if (!$("#custPhone").value) $("#custPhone").value = c.telefono || "";
+    if (!$("#custCity").value) $("#custCity").value = c.ciudad || "";
 
     $("#cartItems").innerHTML = cart.length === 0
       ? `<div class="cart__empty"><p>Tu carrito está vacío.</p><a href="#catalogo" class="btn btn--ghost" data-close-cart>Ver catálogo</a></div>`
@@ -443,7 +443,6 @@
   });
 
   $("#sendOrder").addEventListener("click", () => {
-    if (!conSesion()) { closeCart(); openAuth("ingresar"); return; }
     // Revisa que no se pidan más unidades de las disponibles (el stock pudo cambiar).
     const excedido = [...new Set(cart.map((l) => l.id))].map((id) => productById[id]).find((p) => {
       const s = stockDe(p);
@@ -456,7 +455,10 @@
     }
     const name = $("#custName").value.trim();
     if (!name) { toast("Escribe tu nombre para enviar el pedido"); $("#custName").focus(); return; }
+    const phone = $("#custPhone").value.trim();
+    if (phone.replace(/\D/g, "").length < 7) { toast("Escribe tu celular para confirmar el pedido"); $("#custPhone").focus(); return; }
     const city = $("#custCity").value.trim();
+    guardarCliente({ nombre: name, telefono: phone, ciudad: city });
     const notes = $("#custNotes").value.trim();
     const total = totalCarrito();
 
@@ -465,7 +467,6 @@
       const meta = lineMeta(l);
       return `${i + 1}. ${p.nombre} x${l.qty} = ${subtotal(p, l.qty)}${meta.length ? "\n   " + meta.join(" | ") : ""}`;
     });
-    const u = sesion.usuario;
     const AUTHX = window.STH_AUTH;
     if (!AUTHX?.crearPedido) { toast("No hay conexión con la tienda. Intenta de nuevo."); return; }
 
@@ -478,8 +479,7 @@
       `Total productos: ${fmt(total)}`,
       "",
       `Nombre: ${name}`,
-      `Correo: ${u.correo}`,
-      ...(u.telefono ? [`Celular: ${u.telefono}`] : []),
+      `Celular: ${phone}`,
       ...(city ? [`Ciudad/barrio: ${city}`] : []),
       ...(notes ? [`Notas: ${notes}`] : [])
     ].join("\n");
@@ -500,7 +500,7 @@
       let token = null, ultimoError = null;
       for (let intento = 0; intento < 3 && !token; intento++) {
         const t = AUTHX.nuevoToken();
-        try { await AUTHX.crearPedido(t, { items, total, ciudad: city, notas: notes }); token = t; }
+        try { await AUTHX.crearPedido(t, { items, total, notas: notes, cliente: { nombre: name, telefono: phone, ciudad: city } }); token = t; }
         catch (ex) { ultimoError = ex; }
       }
       btn.disabled = false;
@@ -552,84 +552,36 @@
     toastTimer = setTimeout(() => t.classList.remove("show"), ms);
   }
 
-  /* ---------- Cuenta: ingresar, registrarse, recuperar ---------- */
+  /* ---------- Datos del cliente (sin cuenta) ---------- */
+  const CLIENTE_KEY = "sth-cliente";
+  function clienteGuardado() {
+    try { return JSON.parse(localStorage.getItem(CLIENTE_KEY) || "{}") || {}; } catch { return {}; }
+  }
+  function guardarCliente(c) {
+    try { localStorage.setItem(CLIENTE_KEY, JSON.stringify(c)); } catch { /* nada */ }
+  }
+  // Si escribe su nombre o celular, se guarda para el recordatorio de carrito.
+  ["#custName", "#custPhone", "#custCity"].forEach((sel) => $(sel).addEventListener("change", () => {
+    guardarCliente({ nombre: $("#custName").value.trim(), telefono: $("#custPhone").value.trim(), ciudad: $("#custCity").value.trim() });
+    sincronizarCarrito();
+  }));
+
+  /* ---------- Cuenta del administrador (si abre la tienda con su sesión) ---------- */
   const authModal = $("#authModal");
   const AUTH = () => window.STH_AUTH;
-  const esAdmin = () => conSesion() &&
+  const esAdmin = () => esUsuario() &&
     (CFG.administradores || []).map((c) => c.toLowerCase()).includes((sesion.usuario.correo || "").toLowerCase());
 
-  function openAuth(panel) {
-    if (conSesion()) panel = "cuenta";
-    $$(".auth__panel", authModal).forEach((el) => {
-      el.hidden = el.dataset.panel !== panel;
-      const err = $(".auth__error", el);
-      if (err) err.textContent = "";
-    });
-    if (panel === "cuenta") {
-      $("#acctName").textContent = sesion.usuario.nombre || "cliente";
-      $("#acctEmail").textContent = sesion.usuario.correo;
-      $("#adminLink").hidden = !esAdmin();
-    } else if (!sesion.configurado) {
-      $(`[data-panel="${panel}"] .auth__error`, authModal).textContent =
-        "El inicio de sesión aún no está activado en esta tienda.";
-    }
+  function openAuth() {
+    if (!esUsuario()) return;
+    $("#acctName").textContent = sesion.usuario.nombre || "administrador";
+    $("#acctEmail").textContent = sesion.usuario.correo;
+    $("#adminLink").hidden = !esAdmin();
     if (!authModal.open) authModal.showModal();
-    $(`[data-panel="${panel}"] input`, authModal)?.focus();
   }
 
   $$("[data-auth-close]", authModal).forEach((b) => b.addEventListener("click", () => authModal.close()));
   authModal.addEventListener("click", (e) => { if (e.target === authModal) authModal.close(); });
-
-  // Envía un formulario de cuenta mostrando "procesando" y los errores en español.
-  function manejar(form, accion) {
-    form.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const err = $(".auth__error", form);
-      const btn = $('button[type="submit"]', form);
-      err.textContent = "";
-      if (!AUTH() || !sesion.configurado) { err.textContent = "El inicio de sesión aún no está activado en esta tienda."; return; }
-      const datos = Object.fromEntries(new FormData(form));
-      const texto = btn.textContent;
-      btn.disabled = true;
-      btn.textContent = "Un momento…";
-      try {
-        await accion(datos, err);
-      } catch (ex) {
-        err.textContent = AUTH().mensaje(ex);
-      } finally {
-        btn.disabled = false;
-        btn.textContent = texto;
-      }
-    });
-  }
-
-  manejar($("#loginForm"), async ({ correo, clave }, err) => {
-    if (!correo || !clave) { err.textContent = "Escribe tu correo y contraseña."; return; }
-    await AUTH().ingresar(correo, clave);
-    authModal.close();
-    $("#loginForm").reset();
-    toast("Sesión iniciada. Ya puedes ver los precios.");
-  });
-
-  manejar($("#registerForm"), async (d, err) => {
-    if (!d.nombre.trim() || !d.telefono.trim() || !d.correo.trim() || !d.clave) {
-      err.textContent = "Completa todos los campos.";
-      return;
-    }
-    if (d.clave.length < 6) { err.textContent = "La contraseña debe tener al menos 6 caracteres."; return; }
-    await AUTH().registrar(d);
-    authModal.close();
-    $("#registerForm").reset();
-    toast("¡Cuenta creada! Ya puedes ver los precios.");
-  });
-
-  manejar($("#resetForm"), async ({ correo }, err) => {
-    if (!correo) { err.textContent = "Escribe tu correo."; return; }
-    await AUTH().recuperar(correo);
-    err.textContent = "";
-    toast("Te enviamos un enlace a tu correo. Revisa también la carpeta de spam.");
-    openAuth("ingresar");
-  });
 
   $("#logoutBtn").addEventListener("click", async () => {
     try { await AUTH().salir(); } catch { /* sin conexión */ }
@@ -637,15 +589,12 @@
     toast("Sesión cerrada");
   });
 
-  $("#accountBtn").addEventListener("click", () => openAuth("ingresar"));
+  $("#accountBtn").addEventListener("click", openAuth);
 
   function renderSesion() {
-    const btn = $("#accountBtn");
-    btn.classList.toggle("is-in", conSesion());
-    const nombre = conSesion() ? (sesion.usuario.nombre || "").split(" ")[0] || "Mi cuenta" : "Ingresar";
-    $("#accountLabel").textContent = nombre;
-    btn.setAttribute("aria-label", conSesion() ? "Mi cuenta" : "Ingresar o crear cuenta");
-    $("#priceNotice").hidden = !sesion.listo || conSesion();
+    // El botón de cuenta solo se ve si un administrador abrió la tienda con su sesión.
+    $("#accountBtn").hidden = !esUsuario();
+    $("#accountBtn").setAttribute("aria-label", "Mi cuenta de administrador");
     const sinPrecio = esAdmin() ? PRODUCTOS.filter((p) => !precio(p)).length : 0;
     $("#adminNotice").hidden = sinPrecio === 0;
     $("#adminMissing").textContent = sinPrecio;
@@ -676,7 +625,7 @@
     renderSesion();
     // Al iniciar sesión: si este navegador no tiene carrito, recupera el guardado;
     // si tiene, lo guarda para el recordatorio.
-    const uid = sesion.usuario?.uid || null;
+    const uid = sesion.uid || null;
     if (uid && uid !== uidAnterior && productosListos) {
       uidAnterior = uid;
       if (cart.length) sincronizarCarrito();
@@ -707,7 +656,8 @@
     if (!forzar && !volvio) return;
     recordatorioMostrado = true;
     const n = cart.reduce((s, l) => s + l.qty, 0);
-    const nombre = sesion.usuario?.nombre ? sesion.usuario.nombre.split(" ")[0] + ", t" : "T";
+    const quien = clienteGuardado().nombre || sesion.usuario?.nombre || "";
+    const nombre = quien ? quien.split(" ")[0] + ", t" : "T";
     $("#cartReminderText").textContent = `${nombre}ienes ${n} producto${n === 1 ? "" : "s"} esperando en tu carrito.`;
     $("#cartReminder").hidden = false;
   }
@@ -730,7 +680,7 @@
 
   window.addEventListener("sth:auth", (e) => {
     aplicarEstado(e.detail);
-    if (sesion.error && conSesion()) toast(sesion.error);
+    if (sesion.error && esUsuario()) toast(sesion.error);
   });
 
   // Si js/auth.js no carga (sin internet o bloqueado), no dejamos la página en "Cargando…".
@@ -745,8 +695,6 @@
 
   /* ---------- Eventos generales ---------- */
   document.addEventListener("click", (e) => {
-    const a = e.target.closest("[data-auth]");
-    if (a) { openAuth(a.dataset.auth); return; }
     const open = e.target.closest("[data-open]");
     if (open) { openProduct(open.dataset.open); return; }
     const sec = e.target.closest("[data-sector]");

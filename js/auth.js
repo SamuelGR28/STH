@@ -1,6 +1,7 @@
 /* =========================================================
    SJTS – Cuentas, productos y precios (Firebase)
-   - Inicia sesión, registra y cierra sesión.
+   - Visitantes: sesión anónima automática (no se registran).
+   - Administradores: inician sesión con correo y contraseña.
    - Lee los productos de Firestore (públicos).
    - Lee los precios de Firestore solo cuando hay sesión.
    - Avisa a la página con el evento "sth:auth".
@@ -13,8 +14,8 @@
    ========================================================= */
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
-  getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword,
-  signOut, sendPasswordResetEmail, sendEmailVerification, updateProfile
+  getAuth, onAuthStateChanged, signInWithEmailAndPassword,
+  signOut, sendPasswordResetEmail, signInAnonymously
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import {
   getFirestore, doc, getDoc, getDocs, setDoc, collection, writeBatch, deleteField, serverTimestamp, runTransaction,
@@ -30,7 +31,8 @@ const SECTORES_EJEMPLO = window.STH_SECTORES || [];
 const estado = {
   listo: false,              // ya se sabe si hay sesión
   configurado,
-  usuario: null,
+  usuario: null,             // solo administradores (entran con correo)
+  uid: null,                 // sesión actual: visitante anónimo o administrador
   precios: {},
   productos: null,           // null = cargando; luego, lista de productos
   sectores: null,            // null = cargando; luego, lista de sectores
@@ -140,20 +142,6 @@ window.STH_AUTH = {
     await signInWithEmailAndPassword(auth, correo.trim(), clave);
   },
 
-  async registrar({ nombre, telefono, correo, clave }) {
-    const cred = await createUserWithEmailAndPassword(auth, correo.trim(), clave);
-    await updateProfile(cred.user, { displayName: nombre.trim() });
-    await setDoc(doc(db, "usuarios", cred.user.uid), {
-      nombre: nombre.trim(),
-      telefono: telefono.trim(),
-      correo: correo.trim(),
-      creado: serverTimestamp()
-    });
-    try { await sendEmailVerification(cred.user); } catch { /* opcional */ }
-    estado.usuario = { uid: cred.user.uid, correo: cred.user.email, nombre: nombre.trim(), telefono: telefono.trim() };
-    avisar();
-  },
-
   async salir() { await signOut(auth); },
 
   // Guarda la lista completa de sectores (en el orden en que se muestran).
@@ -235,14 +223,19 @@ window.STH_AUTH = {
   },
 
   // Guarda el pedido del cliente con estado "pendiente". No toca el inventario.
-  async crearPedido(token, { items, total, ciudad, notas }) {
-    const u = estado.usuario;
-    if (!db || !u) throw new Error("Inicia sesión para enviar el pedido.");
+  // cliente = { nombre, telefono, ciudad } escritos por el cliente al pedir (no necesita cuenta).
+  async crearPedido(token, { items, total, notas, cliente }) {
+    if (!db || !estado.uid) throw new Error("Sin conexión con la tienda.");
     await setDoc(doc(db, "pedidos", token), {
       token,
       estado: "pendiente",
-      uid: u.uid,
-      cliente: { nombre: u.nombre || "", correo: u.correo || "", telefono: u.telefono || "", ciudad: ciudad || "" },
+      uid: estado.uid,
+      cliente: {
+        nombre: String(cliente?.nombre || "").slice(0, 80),
+        telefono: String(cliente?.telefono || "").slice(0, 30),
+        ciudad: String(cliente?.ciudad || "").slice(0, 80),
+        correo: estado.usuario?.correo || ""
+      },
       notas: String(notas || "").slice(0, 500),
       items: items.slice(0, 50),
       total: Number(total) || 0,
@@ -252,15 +245,19 @@ window.STH_AUTH = {
 
   /* ----- Carritos guardados (para recordar carritos abandonados) ----- */
 
-  // Guarda el carrito del cliente con sesión. items = [{ id, nombre, qty, talla, color, personalizacion }].
-  async guardarCarrito(items, total) {
-    const u = estado.usuario;
-    if (!db || !u) return;
-    const ref = doc(db, "carritos", u.uid);
+  // Guarda el carrito del visitante. items = [{ id, nombre, qty, talla, color, personalizacion }].
+  // cliente = datos que el visitante haya escrito (nombre, celular), si los escribió.
+  async guardarCarrito(items, total, cliente = {}) {
+    if (!db || !estado.uid) return;
+    const ref = doc(db, "carritos", estado.uid);
     if (!items.length) { await deleteDoc(ref).catch(() => {}); return; }
     await setDoc(ref, {
-      uid: u.uid,
-      cliente: { nombre: u.nombre || "", correo: u.correo || "", telefono: u.telefono || "" },
+      uid: estado.uid,
+      cliente: {
+        nombre: String(cliente.nombre || estado.usuario?.nombre || "").slice(0, 80),
+        telefono: String(cliente.telefono || "").slice(0, 30),
+        correo: estado.usuario?.correo || ""
+      },
       items: items.slice(0, 50),
       total: Number(total) || 0,
       actualizado: serverTimestamp()
@@ -269,9 +266,8 @@ window.STH_AUTH = {
 
   // Carrito guardado del cliente con sesión (para recuperarlo en otro dispositivo).
   async leerCarrito() {
-    const u = estado.usuario;
-    if (!db || !u) return [];
-    const s = await getDoc(doc(db, "carritos", u.uid));
+    if (!db || !estado.uid) return [];
+    const s = await getDoc(doc(db, "carritos", estado.uid));
     return s.exists() && Array.isArray(s.data().items) ? s.data().items : [];
   },
 
@@ -411,23 +407,39 @@ if (!configurado) {
 
   cargarProductos();
 
+  // En la tienda, cada visitante recibe una sesión anónima automática (sin registrarse):
+  // así puede ver precios y enviar pedidos con token, y las reglas siguen protegiendo los datos.
+  // En admin.html no: ahí solo entran los administradores con correo y contraseña.
+  const esTienda = !/admin\.html$/i.test(location.pathname);
+
   onAuthStateChanged(auth, async (user) => {
     estado.error = "";
     if (!user) {
       estado.usuario = null;
+      estado.uid = null;
       estado.precios = {};
+      if (esTienda) {
+        try { await signInAnonymously(auth); return; } // vuelve a entrar aquí con el visitante
+        catch (e) {
+          console.warn("[SJTS] Acceso anónimo no disponible:", e?.code || e);
+          estado.error = "Activa el acceso anónimo en Firebase (Authentication > Método de acceso > Anónimo).";
+        }
+      }
       estado.listo = true;
       avisar();
       return;
     }
-    estado.usuario = { uid: user.uid, correo: user.email, nombre: user.displayName || "", telefono: "", verificado: user.emailVerified };
+    estado.uid = user.uid;
+    // Los visitantes anónimos no son "usuarios": solo los administradores entran con correo.
+    estado.usuario = user.isAnonymous ? null
+      : { uid: user.uid, correo: user.email, nombre: user.displayName || "", telefono: "", verificado: user.emailVerified };
     try {
       const [precios, perfil] = await Promise.all([
         getDoc(doc(db, "precios", "catalogo")),
-        getDoc(doc(db, "usuarios", user.uid))
+        user.isAnonymous ? Promise.resolve(null) : getDoc(doc(db, "usuarios", user.uid)).catch(() => null)
       ]);
       estado.precios = precios.exists() ? precios.data() : {};
-      if (perfil.exists()) {
+      if (perfil?.exists()) {
         const p = perfil.data();
         estado.usuario.nombre = p.nombre || estado.usuario.nombre;
         estado.usuario.telefono = p.telefono || "";
