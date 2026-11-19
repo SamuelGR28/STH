@@ -153,7 +153,7 @@ Solo los administradores entran con correo y contraseña, en `admin.html`.
 
 1. Entra a https://console.firebase.google.com y crea un proyecto.
 2. **Authentication > Método de acceso**: activa **Correo electrónico/contraseña** (para los administradores) y **Anónimo** (para los visitantes).
-3. **Authentication > Configuración > Dominios autorizados**: agrega `samuelgr28.github.io`. `localhost` ya viene incluido.
+3. **Authentication > Configuración > Dominios autorizados**: agrega `sjtsmanualidades.com`, `www.sjtsmanualidades.com` y `samuelgr28.github.io`. `localhost` ya viene incluido.
 4. **Firestore Database > Crear base de datos**: ubicación `southamerica-east1`, en **modo de producción**.
 5. **Firestore > Reglas**: pega todo `firestore.rules` y pulsa **Publicar**. Los correos de administrador deben ser los mismos de `js/config.js` > `administradores`.
 6. **Configuración del proyecto > Tus apps > Web `</>`**: copia `firebaseConfig` en `js/config.js`.
@@ -164,7 +164,7 @@ Los datos de `firebaseConfig` (como `apiKey`) son públicos por diseño. La segu
 
 1. Firebase > **Authentication > Usuarios > Agregar usuario**: correo y contraseña.
 2. Agrega ese correo en `js/config.js` (`administradores`) y en `firestore.rules` (`esAdmin`), y publica las reglas.
-3. El administrador entra en `https://samuelgr28.github.io/STH/admin.html`. También hay un enlace **Administrar** al pie de la tienda.
+3. El administrador entra en `https://sjtsmanualidades.com/admin.html`. También hay un enlace **Administrar** al pie de la tienda.
 
 ### Poner o cambiar precios
 
