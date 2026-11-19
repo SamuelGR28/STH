@@ -595,7 +595,53 @@
     else location.href = "admin.html";
   });
 
+  // Lista de productos en formato que entiende Google (schema.org), con precio y disponibilidad.
+  let ldAnterior = "";
+  function actualizarDatosGoogle() {
+    if (!productosListos || !PRODUCTOS.length) return;
+    const base = "https://sjtsmanualidades.com/";
+    const datos = {
+      "@context": "https://schema.org",
+      "@type": "ItemList",
+      "name": "Catálogo SJTS Manualidades",
+      "itemListElement": PRODUCTOS.map((p, i) => {
+        const v = precio(p);
+        const s = stockDe(p);
+        const prod = {
+          "@type": "Product",
+          "name": p.nombre,
+          "description": p.descripcion || p.nombre,
+          "category": sectorById[p.categoria]?.nombre || "",
+          "brand": { "@type": "Brand", "name": "SJTS Manualidades" }
+        };
+        if (/^https?:\/\//.test(p.imagen || "")) prod.image = p.imagen;
+        if (v) {
+          prod.offers = {
+            "@type": "Offer",
+            "price": v,
+            "priceCurrency": CFG.moneda || "COP",
+            "availability": s === 0 ? "https://schema.org/OutOfStock" : "https://schema.org/InStock",
+            "url": `${base}?sector=${encodeURIComponent(p.categoria)}#catalogo`
+          };
+        }
+        return { "@type": "ListItem", "position": i + 1, "item": prod };
+      })
+    };
+    const json = JSON.stringify(datos);
+    if (json === ldAnterior) return;
+    ldAnterior = json;
+    let el = document.getElementById("ld-productos");
+    if (!el) {
+      el = document.createElement("script");
+      el.type = "application/ld+json";
+      el.id = "ld-productos";
+      document.head.appendChild(el);
+    }
+    el.textContent = json;
+  }
+
   function renderSesion() {
+    actualizarDatosGoogle();
     // El botón de cuenta solo se ve si un administrador abrió la tienda con su sesión.
     $("#accountBtn").classList.toggle("is-in", esUsuario());
     $("#accountLabel").textContent = esUsuario() ? "Admin" : "Ingreso admin";
