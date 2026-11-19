@@ -589,12 +589,17 @@
     toast("Sesión cerrada");
   });
 
-  $("#accountBtn").addEventListener("click", openAuth);
+  // Sin sesión de administrador: lleva al ingreso de admin. Con sesión: muestra "Mi cuenta".
+  $("#accountBtn").addEventListener("click", () => {
+    if (esUsuario()) openAuth();
+    else location.href = "admin.html";
+  });
 
   function renderSesion() {
     // El botón de cuenta solo se ve si un administrador abrió la tienda con su sesión.
-    $("#accountBtn").hidden = !esUsuario();
-    $("#accountBtn").setAttribute("aria-label", "Mi cuenta de administrador");
+    $("#accountBtn").classList.toggle("is-in", esUsuario());
+    $("#accountLabel").textContent = esUsuario() ? "Admin" : "Ingreso admin";
+    $("#accountBtn").setAttribute("aria-label", esUsuario() ? "Mi cuenta de administrador" : "Ingreso de administrador");
     const sinPrecio = esAdmin() ? PRODUCTOS.filter((p) => !precio(p)).length : 0;
     $("#adminNotice").hidden = sinPrecio === 0;
     $("#adminMissing").textContent = sinPrecio;

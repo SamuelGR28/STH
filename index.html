@@ -27,9 +27,10 @@
       </nav>
 
       <div class="topbar__actions">
-        <button class="account-btn is-in" id="accountBtn" aria-haspopup="dialog" hidden>
+        <!-- Único ingreso visible: el del administrador (los clientes no tienen cuenta). -->
+        <button class="account-btn" id="accountBtn" aria-label="Ingreso de administrador">
           <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>
-          <span id="accountLabel">Admin</span>
+          <span id="accountLabel">Ingreso admin</span>
         </button>
         <button class="icon-btn cart-btn" id="openCart" aria-label="Abrir carrito">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6h15l-1.5 9h-12z"/><path d="M6 6 5 3H2"/><circle cx="9" cy="20" r="1.5"/><circle cx="18" cy="20" r="1.5"/></svg>
@@ -170,7 +171,7 @@
 
   <footer class="footer">
     <div class="wrap footer__inner">
-      <span>© <span id="year"></span> SJTS · Multitienda creativa · <a href="admin.html">Administrar</a></span>
+      <span>© <span id="year"></span> SJTS · Multitienda creativa</span>
       <a href="#inicio">Volver arriba ↑</a>
     </div>
   </footer>
